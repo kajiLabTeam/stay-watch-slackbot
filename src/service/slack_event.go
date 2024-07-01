@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/kajiLabTeam/stay-watch-slackbot/conf"
 	"github.com/slack-go/slack"
 )
 
@@ -21,15 +22,16 @@ type Probability struct {
 	Probability float64 `json:"probability"`
 }
 
-func SlackCallbackEvent() {
-}
+var url string
 
-func SlackAppMentionEvent() {
+func init() {
+	s := conf.GetStayWatchConfig()
+	url = s.GetString("stay-watch.url")
 }
 
 func GetUsers() ([]*slack.OptionBlockObject, error) {
-	url := ""
-	req, _ := http.NewRequest("GET", url, nil)
+	getUsersURL := url + "/users/2"
+	req, _ := http.NewRequest("GET", getUsersURL, nil)
 	client := new(http.Client)
 	resp, err := client.Do(req)
 	if err != nil {
@@ -56,12 +58,12 @@ func GetProbability() (Probability, string, error) {
 	time := time.Now()
 	time_str := time.Format("15:04:05")
 	date := time.Format("2006-01-02")
-	url := "https://staywatch-backend.kajilab.net/api/v1/probability/reporting/before?user_id=1&date=" + date + "&time=" + time_str
-	req, _ := http.NewRequest("GET", url, nil)
+	getProbabilityURL := url + "/probability/reporting/before?user_id=1&date=" + date + "&time=" + time_str
+	req, _ := http.NewRequest("GET", getProbabilityURL, nil)
 	client := new(http.Client)
 	resp, err := client.Do(req)
 	if err != nil {
-		return probability,"", err
+		return probability, "", err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
