@@ -117,7 +117,7 @@ func PostSlackInteraction(c *gin.Context) {
 	action := interaction.ActionCallback.BlockActions[0]
 	switch action.ActionID {
 	case "select_user":
-		probability, time, err := service.GetProbability()
+		probability, time, err := service.GetProbability("2")
 		if err != nil {
 			api.SendMessage("", slack.MsgOptionReplaceOriginal(interaction.ResponseURL), slack.MsgOptionText("Sorry, I can't get the data.", false))
 			return
