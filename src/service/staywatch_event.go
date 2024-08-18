@@ -52,11 +52,11 @@ func GetUsers() (obo []*slack.OptionBlockObject, err error) {
 	return
 }
 
-func GetProbability() (probability Probability, time_str string, err error) {
+func GetProbability(user_id string) (probability Probability, time_str string, err error) {
 	time := time.Now()
 	time_str = time.Format("15:04:05")
 	date := time.Format("2006-01-02")
-	getProbabilityURL := url + "/probability/reporting/before?user_id=1&date=" + date + "&time=" + time_str
+	getProbabilityURL := url + "/probability/reporting/before?user_id=" + user_id + "&date=" + date + "&time=" + time_str
 	req, _ := http.NewRequest("GET", getProbabilityURL, nil)
 	client := new(http.Client)
 	resp, err := client.Do(req)
