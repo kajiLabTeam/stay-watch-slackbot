@@ -73,3 +73,22 @@ func GetProbability(user_id string) (probability Probability, time_str string, e
 	}
 	return
 }
+
+func GetStayWatchUser(user_name string) (user Users, err error) {
+	getUserURL := url + "/user/" + user_name
+	req, _ := http.NewRequest("GET", getUserURL, nil)
+	client := new(http.Client)
+	resp, err := client.Do(req)
+	if err != nil {
+		return
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return
+	}
+	body, _ := io.ReadAll(resp.Body)
+	if err = json.Unmarshal(body, &user); err != nil {
+		return
+	}
+	return
+}
