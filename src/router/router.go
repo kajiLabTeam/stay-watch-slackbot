@@ -8,12 +8,13 @@ import (
 	"github.com/kajiLabTeam/stay-watch-slackbot/controller"
 )
 
-func router() {
+func Router() {
 	gin.DisableConsoleColor()
 	f, _ := os.Create("../server.log")
 	gin.DefaultWriter = io.MultiWriter(f)
 
 	r := gin.Default()
+	r.SetTrustedProxies([]string{"127.0.0.1"})
 
 	// r.Use(cors.New(cors.Config{
 	// アクセスを許可したいアクセス元
@@ -43,4 +44,6 @@ func router() {
 
 	r.POST("/slack/events", controller.PostSlackEvents)
 	r.POST("/slack/interaction", controller.PostSlackInteraction)
+
+	r.Run(":8085")
 }
