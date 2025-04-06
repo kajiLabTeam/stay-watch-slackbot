@@ -3,23 +3,14 @@ package service
 import (
 	"encoding/json"
 	"io"
+	"log"
 	"net/http"
+	"net/url"
 	"strconv"
 	"time"
 
 	"github.com/slack-go/slack"
 )
-
-type Users struct {
-	ID   int64  `json:"id"`
-	Name string `json:"name"`
-}
-
-type Probability struct {
-	UserId      int     `json:"userId"`
-	UserName    string  `json:"userName"`
-	Probability float64 `json:"probability"`
-}
 
 func SlackCallbackEvent() {
 }
@@ -28,8 +19,10 @@ func SlackAppMentionEvent() {
 }
 
 func GetUsers() ([]*slack.OptionBlockObject, error) {
-	url := ""
-	req, _ := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest("GET", staywatch.BaseURL+staywatch.Users, nil)
+	if err != nil {
+		return nil, err
+	}
 	client := new(http.Client)
 	resp, err := client.Do(req)
 	if err != nil {
@@ -40,36 +33,49 @@ func GetUsers() ([]*slack.OptionBlockObject, error) {
 		return nil, err
 	}
 	body, _ := io.ReadAll(resp.Body)
-	var users []Users
 	if err := json.Unmarshal(body, &users); err != nil {
 		return nil, err
 	}
 	var obo []*slack.OptionBlockObject
 	for _, user := range users {
-		obo = append(obo, &slack.OptionBlockObject{Text: &slack.TextBlockObject{Type: slack.PlainTextType, Text: user.Name}, Value: strconv.FormatInt(user.ID, 5)})
+		obo = append(obo, &slack.OptionBlockObject{Text: &slack.TextBlockObject{Type: slack.PlainTextType, Text: user.Name}, Value: strconv.FormatInt(user.ID, 10)})
 	}
 	return obo, nil
 }
 
-func GetProbability() (Probability, string, error) {
+func GetProbability(userID int) (Probability, string, error) {
 	var probability Probability
-	time := time.Now()
-	time_str := time.Format("15:04:05")
-	date := time.Format("2006-01-02")
-	url := "https://staywatch-backend.kajilab.net/api/v1/probability/reporting/before?user_id=1&date=" + date + "&time=" + time_str
-	req, _ := http.NewRequest("GET", url, nil)
-	client := new(http.Client)
-	resp, err := client.Do(req)
+	now := time.Now()
+	time_str := now.Format("15:04")
+	w := now.Weekday()
+	// 月曜を0とする変換
+	weekday := (int(w) + 6) % 7
+	u, _ := url.Parse(staywatch.BaseURL + staywatch.Probability + "/visit")
+	q := u.Query()
+	q.Add("user-id", strconv.Itoa(userID))
+	q.Add("weekday", strconv.Itoa(weekday))
+	q.Add("time", time_str)
+	u.RawQuery = q.Encode()
+	log.Default().Println(u.String())
+	res, err := http.Get(u.String())
 	if err != nil {
-		return probability,"", err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != 200 {
 		return probability, "", err
 	}
-	body, _ := io.ReadAll(resp.Body)
-	if err := json.Unmarshal(body, &probability); err != nil {
+	defer res.Body.Close()
+	b, _ := io.ReadAll(res.Body)
+	var r StayWatchResponse
+	if err := json.Unmarshal(b, &r); err != nil {
+		log.Default().Println(err)
 		return probability, "", err
 	}
+	probability.UserId = userID
+	log.Default().Println(r)
+	for _, user := range users {
+		if user.ID == int64(userID) {
+			probability.UserName = user.Name
+			break
+		}
+	}
+	probability.Probability = r.Result[0].Probability
 	return probability, time_str, nil
 }
