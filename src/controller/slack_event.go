@@ -5,25 +5,12 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/kajiLabTeam/stay-watch-slackbot/conf"
 	"github.com/kajiLabTeam/stay-watch-slackbot/service"
 	"github.com/slack-go/slack"
 	"github.com/slack-go/slack/slackevents"
 )
-
-var (
-	signingSecret string
-	api           *slack.Client
-)
-
-func init() {
-	s := conf.GetSlackConfig()
-	signingSecret = s.GetString("slack.signing_secret")
-	api = slack.New(s.GetString("slack.bot_user_oauth_token"))
-}
 
 func PostSlackEvents(c *gin.Context) {
 	body, err := io.ReadAll(c.Request.Body)
@@ -57,8 +44,9 @@ func PostSlackEvents(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 			return
 		}
-		c.Request.Header.Set("Content-Type", "text/plain")
-		c.JSON(http.StatusOK, []byte(r.Challenge))
+		c.Header("Content-Type", "text/plain")
+		c.JSON(http.StatusOK, r.Challenge)
+		return
 	}
 
 	if eventsAPIEvent.Type == slackevents.CallbackEvent {
@@ -96,58 +84,12 @@ func PostSlackEvents(c *gin.Context) {
 				},
 			))
 			if err != nil {
+				log.Default().Println(err)
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 				return
 			}
-		}
-	}
-}
-
-func PostSlackInteraction(c *gin.Context) {
-	var interaction slack.InteractionCallback
-	err := json.Unmarshal([]byte(c.Request.FormValue("payload")), &interaction)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "bad request"})
-		return
-	}
-	if len(interaction.ActionCallback.BlockActions) != 1 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "bad request"})
-		return
-	}
-	action := interaction.ActionCallback.BlockActions[0]
-	switch action.ActionID {
-	case "select_user":
-		probability, time, err := service.GetProbability()
-		if err != nil {
-			api.SendMessage("", slack.MsgOptionReplaceOriginal(interaction.ResponseURL), slack.MsgOptionText("Sorry, I can't get the data.", false))
 			return
 		}
-
-		_, _, _, err = api.SendMessage(
-			"",
-			slack.MsgOptionReplaceOriginal(interaction.ResponseURL),
-			slack.MsgOptionBlocks(
-				slack.SectionBlock{
-					Type: slack.MBTSection,
-					Text: &slack.TextBlockObject{
-						Type: slack.MarkdownType,
-						Text: "だれの確率を調べますか？: " + action.SelectedOption.Text.Text,
-					},
-				},
-				slack.SectionBlock{
-					Type: slack.MBTSection,
-					Text: &slack.TextBlockObject{
-						Type: slack.MarkdownType,
-						Text: "```\n" + probability.UserName + "が" + time + "までに研究室に来る確率 : " + strconv.FormatFloat(probability.Probability, 'f', 2, 64) + "%\n ```",
-					},
-				},
-			),
-		)
-		if err != nil {
-			api.SendMessage("", slack.MsgOptionReplaceOriginal(interaction.ResponseURL), slack.MsgOptionText("Sorry, I can't get the data.", false))
-			return
-		}
-	default:
 		return
 	}
 }

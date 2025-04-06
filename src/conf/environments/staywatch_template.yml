@@ -1,0 +1,5 @@
+staywatch:
+  url: "https://url"
+  users: "path"
+  probability: "path"
+  time: "path"
