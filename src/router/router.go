@@ -10,7 +10,7 @@ import (
 
 func Router() {
 	gin.DisableConsoleColor()
-	f, _ := os.Create("../server.log")
+	f, _ := os.Create("../log/server.log")
 	gin.DefaultWriter = io.MultiWriter(f)
 
 	r := gin.Default()
