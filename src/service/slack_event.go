@@ -3,7 +3,6 @@ package service
 import (
 	"encoding/json"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -57,7 +56,6 @@ func GetProbability(userID int) (Probability, string, error) {
 	q.Add("weekday", strconv.Itoa(weekday))
 	q.Add("time", time_str)
 	u.RawQuery = q.Encode()
-	log.Default().Println(u.String())
 	res, err := http.Get(u.String())
 	if err != nil {
 		return probability, "", err
@@ -66,11 +64,9 @@ func GetProbability(userID int) (Probability, string, error) {
 	b, _ := io.ReadAll(res.Body)
 	var r StayWatchResponse
 	if err := json.Unmarshal(b, &r); err != nil {
-		log.Default().Println(err)
 		return probability, "", err
 	}
 	probability.UserId = userID
-	log.Default().Println(r)
 	for _, user := range users {
 		if user.ID == int64(userID) {
 			probability.UserName = user.Name
