@@ -45,7 +45,8 @@ func GetUsers() ([]*slack.OptionBlockObject, error) {
 
 func GetProbability(userID int) (Probability, string, error) {
 	var probability Probability
-	now := time.Now()
+	loc, _ := time.LoadLocation("Asia/Tokyo")
+	now := time.Now().In(loc)
 	time_str := now.Format("15:04")
 	w := now.Weekday()
 	// 月曜を0とする変換
