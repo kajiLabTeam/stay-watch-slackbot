@@ -25,3 +25,5 @@ src/conf/environments/slack.yml
 src/conf/environments/staywatch.yml
 .env
 .DS_Store
+tmp
+log
