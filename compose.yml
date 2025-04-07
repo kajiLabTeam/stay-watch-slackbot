@@ -1,0 +1,15 @@
+services:
+  api:
+    container_name: ${API_CONTAINER_NAME}
+    build:
+      context: .
+      dockerfile: ./docker/app/dockerfile
+    stdin_open: true
+    tty: true
+    volumes:
+      - ./src:/stay_watch-slackbot/src
+      - ./log:/stay_watch-slackbot/log
+    environment:
+      - GIN_MODE=${GIN_MODE}
+    ports:
+      - ${API_PORT}:8085
