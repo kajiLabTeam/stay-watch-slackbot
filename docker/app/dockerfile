@@ -1,0 +1,11 @@
+FROM golang:1.24
+
+RUN apt update && apt install -y git &&\
+    apt install -y lsof &&\
+    go install github.com/air-verse/air@latest
+
+WORKDIR /stay_watch-slackbot/src
+
+# COPY ./src /root/src
+
+CMD ["air", "-c", ".air.toml"]

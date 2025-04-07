@@ -47,7 +47,7 @@ func PostSlackInteraction(c *gin.Context) {
 					Type: slack.MBTSection,
 					Text: &slack.TextBlockObject{
 						Type: slack.MarkdownType,
-						Text: "```\n" + probability.UserName + "が" + time + "までに研究室に来る確率 : " + strconv.FormatFloat(p, 'f', 2, 64) + "%\n ```",
+						Text: "```\n" + probability.UserName + "が" + time + "までに研究室に来る確率 : " + strconv.FormatFloat(p, 'f', 2, 64) + "% ```",
 					},
 				},
 			),

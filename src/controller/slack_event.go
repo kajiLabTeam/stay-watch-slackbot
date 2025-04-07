@@ -3,7 +3,6 @@ package controller
 import (
 	"encoding/json"
 	"io"
-	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -50,7 +49,6 @@ func PostSlackEvents(c *gin.Context) {
 	}
 
 	if eventsAPIEvent.Type == slackevents.CallbackEvent {
-		log.Default().Println(eventsAPIEvent.InnerEvent.Data)
 		innerEvent := eventsAPIEvent.InnerEvent
 		switch ev := innerEvent.Data.(type) {
 		case *slackevents.AppMentionEvent:
@@ -59,7 +57,6 @@ func PostSlackEvents(c *gin.Context) {
 				if _, _, err := api.PostMessage(ev.Channel, slack.MsgOptionText("Sorry, I can't get the data.", false)); err != nil {
 					c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 				}
-				log.Default().Println(err)
 				return
 			}
 
@@ -84,7 +81,6 @@ func PostSlackEvents(c *gin.Context) {
 				},
 			))
 			if err != nil {
-				log.Default().Println(err)
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 				return
 			}
