@@ -4,6 +4,7 @@ import "github.com/spf13/viper"
 
 var s *viper.Viper
 var sw *viper.Viper
+var m *viper.Viper
 
 func init() {
 	s = viper.New()
@@ -15,6 +16,11 @@ func init() {
 	sw.SetConfigType("yaml")
 	sw.SetConfigName("staywatch")
 	sw.AddConfigPath("conf/environments/")
+
+	m = viper.New()
+	m.SetConfigType("yaml")
+	m.SetConfigName("mysql")
+	m.AddConfigPath("conf/environments/")
 }
 
 func GetSlackConfig() *viper.Viper {
@@ -29,4 +35,11 @@ func GetStayWatchConfig() *viper.Viper {
 		return nil
 	}
 	return sw
+}
+
+func GetMysqlConfig() *viper.Viper {
+	if err := m.ReadInConfig(); err != nil {
+		return nil
+	}
+	return m
 }

@@ -23,6 +23,7 @@ go.work.sum
 
 src/conf/environments/slack.yml
 src/conf/environments/staywatch.yml
+src/conf/environments/mysql.yml
 .env
 .DS_Store
 tmp

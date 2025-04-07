@@ -1,0 +1,5 @@
+mysql:
+  user: "user"
+  password: "password"
+  protocol: "protocol"
+  dname: "database_name"
