@@ -70,7 +70,7 @@ func PostSlackInteraction(c *gin.Context) {
 	// --- モーダルSubmitの処理 ---
 	if interaction.Type == slack.InteractionTypeViewSubmission && interaction.View.CallbackID == "register_tag" {
 		values := interaction.View.State.Values
-
+		responseURL := interaction.View.PrivateMetadata
 		name := values["name_block"]["name_input"].Value
 		numStr := values["number_block"]["number_input"].Value
 
@@ -98,6 +98,8 @@ func PostSlackInteraction(c *gin.Context) {
 			return
 		}
 
+		api.PostMessage("", slack.MsgOptionReplaceOriginal(responseURL), slack.MsgOptionText("登録が完了しました。", false))
+
 		// 成功レスポンス
 		c.JSON(http.StatusOK, gin.H{})
 		return
@@ -105,6 +107,7 @@ func PostSlackInteraction(c *gin.Context) {
 
 	if interaction.Type == slack.InteractionTypeViewSubmission && interaction.View.CallbackID == "select_tags" {
 		slackUserID := interaction.User.ID
+		responseURL := interaction.View.PrivateMetadata
 		options := interaction.View.State.Values["tag_select_block"]["tag_checkbox"].SelectedOptions
 
 		for _, opt := range options {
@@ -113,6 +116,8 @@ func PostSlackInteraction(c *gin.Context) {
 			log.Printf("選択された話題: %s (%s)", tagName, tagID)
 			service.RegisterCorrespond(tagName, slackUserID)
 		}
+
+		api.PostMessage("", slack.MsgOptionReplaceOriginal(responseURL), slack.MsgOptionText("登録が完了しました。", false))
 
 		c.JSON(http.StatusOK, gin.H{})
 		return

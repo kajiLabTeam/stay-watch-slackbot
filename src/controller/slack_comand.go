@@ -58,6 +58,7 @@ func PostRegisterTagCommand(c *gin.Context) {
 		Type:       slack.ViewType("modal"),
 		Title:      slack.NewTextBlockObject("plain_text", "登録フォーム", false, false),
 		Submit:     slack.NewTextBlockObject("plain_text", "送信", false, false),
+		PrivateMetadata: s.ResponseURL,
 		Close:      slack.NewTextBlockObject("plain_text", "閉じる", false, false),
 		CallbackID: "register_tag",
 		Blocks: slack.Blocks{
@@ -85,7 +86,7 @@ func PostRegisterTagCommand(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{})
+	c.JSON(http.StatusOK, gin.H{"response_type": "in_channel", "text": "モーダルを開きました。"})
 }
 
 func PostRegisterCorrespondCommand(c *gin.Context) {
@@ -117,6 +118,7 @@ func PostRegisterCorrespondCommand(c *gin.Context) {
 		Title:      slack.NewTextBlockObject("plain_text", "ユーザ選択", false, false),
 		Close:      slack.NewTextBlockObject("plain_text", "閉じる", false, false),
 		Submit:     slack.NewTextBlockObject("plain_text", "決定", false, false),
+		PrivateMetadata: s.ResponseURL,
 		Blocks: slack.Blocks{
 			BlockSet: []slack.Block{
 				slack.InputBlock{
@@ -134,5 +136,5 @@ func PostRegisterCorrespondCommand(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{})
+	c.JSON(http.StatusOK, gin.H{"response_type": "in_channel", "text": "モーダルを開きました。"})
 }
