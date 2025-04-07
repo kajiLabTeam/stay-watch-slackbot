@@ -11,7 +11,7 @@ type StayWatch struct {
 	Time        string
 }
 
-type Users struct {
+type StaywatchUsers struct {
 	ID   int64  `json:"id"`
 	Name string `json:"name"`
 }
@@ -34,8 +34,6 @@ type StayWatchResponse struct {
 	IsForward bool     `json:"isForward"`
 	Result    []Result `json:"result"`
 }
-
-var users []Users
 
 var staywatch StayWatch
 

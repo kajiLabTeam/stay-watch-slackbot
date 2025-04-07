@@ -13,3 +13,24 @@ services:
       - GIN_MODE=${GIN_MODE}
     ports:
       - ${API_PORT}:8085
+    depends_on:
+        db:
+          condition: service_healthy
+
+  db:
+    container_name: ${MYSQL_CONTAINER_NAME}
+    image: mysql:8
+    volumes:
+      - ./docker/db/my.cnf:/etc/mysql/conf.d/my.cnf
+    ports:
+      - ${MYSQL_PORT}:3306
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASS}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASS}
+      MYSQL_DATABASE: ${MYSQL_DB}
+      MYSQL_TCP_PORT: ${MYSQL_PORT}
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 5

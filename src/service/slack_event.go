@@ -18,21 +18,8 @@ func SlackAppMentionEvent() {
 }
 
 func GetUsers() ([]*slack.OptionBlockObject, error) {
-	req, err := http.NewRequest("GET", staywatch.BaseURL+staywatch.Users, nil)
+	users, err := GetStayWatchMember()
 	if err != nil {
-		return nil, err
-	}
-	client := new(http.Client)
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != 200 {
-		return nil, err
-	}
-	body, _ := io.ReadAll(resp.Body)
-	if err := json.Unmarshal(body, &users); err != nil {
 		return nil, err
 	}
 	var obo []*slack.OptionBlockObject
@@ -43,6 +30,11 @@ func GetUsers() ([]*slack.OptionBlockObject, error) {
 }
 
 func GetProbability(userID int) (Probability, string, error) {
+	users, err := GetStayWatchMember()
+	if err != nil {
+		return Probability{}, "", err
+	}
+	
 	var probability Probability
 	loc, _ := time.LoadLocation("Asia/Tokyo")
 	now := time.Now().In(loc)
