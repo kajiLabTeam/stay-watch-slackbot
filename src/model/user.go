@@ -27,3 +27,18 @@ func (u *User) ReadByName() error {
 	}
 	return nil
 }
+
+func (u *User) ReadByStayWatchID() error {
+	if err := db.Where("stay_watch_id = ?", u.StayWatchID).Limit(1).Find(u).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
+func (u *User) ReadAll() ([]User, error) {
+	var users []User
+	if err := db.Preload("Corresponds").Find(&users).Error; err != nil {
+		return nil, err
+	}
+	return users, nil
+}

@@ -2,4 +2,4 @@ mysql:
   user: "user"
   password: "password"
   protocol: "protocol"
-  dname: "database_name"
+  dbname: "database_name"

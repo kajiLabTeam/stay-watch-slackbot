@@ -35,6 +35,12 @@ type StayWatchResponse struct {
 	Result    []Result `json:"result"`
 }
 
+type Prediction struct {
+	UserID    int64
+	Visit     string
+	Departure string
+}
+
 var staywatch StayWatch
 
 func init() {

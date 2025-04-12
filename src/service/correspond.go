@@ -1,6 +1,10 @@
 package service
 
-import "github.com/kajiLabTeam/stay-watch-slackbot/model"
+import (
+	"errors"
+
+	"github.com/kajiLabTeam/stay-watch-slackbot/model"
+)
 
 func RegisterCorrespond(tagName string, slackUserID string) (model.Correspond, error) {
 	tag := model.Tag{
@@ -21,6 +25,16 @@ func RegisterCorrespond(tagName string, slackUserID string) (model.Correspond, e
 	correspond := model.Correspond{
 		UserID: user.ID,
 		TagID:  tag.ID,
+	}
+	corresponds, err := correspond.ReadByUserID()
+	if err != nil {
+		return correspond, err
+	}
+	for _, c := range corresponds {
+		if c.TagID == tag.ID {
+			err := errors.New("correspond already exists")
+			return correspond, err
+		}
 	}
 	if err := correspond.Create(); err != nil {
 		return correspond, err
