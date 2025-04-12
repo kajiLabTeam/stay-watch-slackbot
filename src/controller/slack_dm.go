@@ -12,11 +12,11 @@ func SendDM(c *gin.Context) {
 	users, msg := service.NotifyByTag()
 
 	if len(users) == 0 {
-		c.JSON(http.StatusOK, gin.H{"Can't find users": "No users found"})
+		c.JSON(http.StatusOK, gin.H{"error": "No users found"})
 		return
 	}
 	if len(msg) == 0 {
-		c.JSON(http.StatusOK, gin.H{"Can't find message": "No message found"})
+		c.JSON(http.StatusOK, gin.H{"error": "No message found"})
 		return
 	}
 	for _, user := range users {
