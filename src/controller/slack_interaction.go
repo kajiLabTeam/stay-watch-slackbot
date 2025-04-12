@@ -2,7 +2,6 @@ package controller
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 	"strconv"
 
@@ -83,14 +82,14 @@ func PostSlackInteraction(c *gin.Context) {
 		// DB登録などの処理
 		if _, err := service.RegisterTag(name, numInt); err != nil {
 			if err.Error() == "tag already exists" {
-				_, _, _, _ = api.SendMessage(
+				api.PostMessage(
 					"",
-					slack.MsgOptionReplaceOriginal(interaction.ResponseURL),
-					slack.MsgOptionText("Tag already exists.", false),
+					slack.MsgOptionReplaceOriginal(responseURL),
+					slack.MsgOptionText("登録済みのタグです", false),
 				)
 				return
 			}
-			_, _, _, _ = api.SendMessage(
+			api.SendMessage(
 				"",
 				slack.MsgOptionReplaceOriginal(interaction.ResponseURL),
 				slack.MsgOptionText("Error: "+err.Error(), false),
@@ -111,9 +110,7 @@ func PostSlackInteraction(c *gin.Context) {
 		options := interaction.View.State.Values["tag_select_block"]["tag_checkbox"].SelectedOptions
 
 		for _, opt := range options {
-			tagID := opt.Value // IDが取得できる
 			tagName := opt.Text.Text
-			log.Printf("選択された話題: %s (%s)", tagName, tagID)
 			service.RegisterCorrespond(tagName, slackUserID)
 		}
 
