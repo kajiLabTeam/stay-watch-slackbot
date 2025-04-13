@@ -7,7 +7,7 @@ RUN apt update &&\
     apt install -y lsof &&\
     mkdir src
 
-COPY . /stay_watch-slackbot/src
+COPY ./src /stay_watch-slackbot/src
 
 RUN cd src &&\
     go build -o slackbot
