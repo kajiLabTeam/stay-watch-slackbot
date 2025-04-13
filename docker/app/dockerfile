@@ -9,6 +9,7 @@ RUN apt update &&\
 
 COPY . /stay_watch-slackbot/src
 
-RUN go build -o slackbot
+RUN cd src &&\
+    go build -o slackbot
 
 CMD ["./slackbot"]
