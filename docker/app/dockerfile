@@ -2,9 +2,9 @@ FROM golang:1.24
 
 WORKDIR /stay_watch-slackbot
 
-RUN apt update &&\
-    apt install -y git &&\
-    apt install -y lsof &&\
+RUN apt-get update &&\
+    apt-get install -y git &&\
+    apt-get install -y lsof &&\
     mkdir src
 
 COPY ./src /stay_watch-slackbot/src
