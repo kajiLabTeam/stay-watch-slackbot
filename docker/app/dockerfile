@@ -1,15 +1,12 @@
 FROM golang:1.24
 
-WORKDIR /stay_watch-slackbot
+WORKDIR /stay_watch-slackbot/src
 
 RUN apt-get update && \
-    apt-get install -y git lsof && \
-    mkdir src
+    apt-get install -y git lsof
 
 COPY ./src /stay_watch-slackbot/src
 
-WORKDIR /stay_watch-slackbot/src
-RUN go build -o slackbot && mv slackbot ../
+RUN go build -o slackbot
 
-WORKDIR /stay_watch-slackbot
 CMD ["./slackbot"]
