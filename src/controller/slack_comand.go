@@ -150,8 +150,8 @@ func PostRegisterCorrespondCommand(c *gin.Context) {
 					slack.NewTextBlockObject("plain_text", "話題を選択してください", false, false),
 					slack.NewTextBlockObject("plain_text", "話題", false, false),
 					slack.NewOptionsMultiSelectBlockElement(
-						slack.OptTypeStatic,
-						slack.NewTextBlockObject("plain_text", "話題を選択してください", false, false),
+						slack.MultiOptTypeStatic,
+						slack.NewTextBlockObject("plain_text", "話題", false, false),
 						"tag_checkbox",
 						options...,
 					),
