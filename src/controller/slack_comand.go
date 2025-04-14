@@ -145,17 +145,17 @@ func PostRegisterCorrespondCommand(c *gin.Context) {
 		PrivateMetadata: s.ResponseURL,
 		Blocks: slack.Blocks{
 			BlockSet: []slack.Block{
-				slack.InputBlock{
-					Type:    slack.MBTInput,
-					BlockID: "tag_select_block",
-					// Label:   slack.NewTextBlockObject("plain_text", "話題を選択してください", false, false),
-					Element: slack.NewOptionsMultiSelectBlockElement(
+				slack.NewInputBlock(
+					"tag_select_block",
+					slack.NewTextBlockObject("plain_text", "話題を選択してください", false, false),
+					slack.NewTextBlockObject("plain_text", "話題", false, false),
+					slack.NewOptionsMultiSelectBlockElement(
 						slack.OptTypeStatic,
 						slack.NewTextBlockObject("plain_text", "話題を選択してください", false, false),
 						"tag_checkbox",
 						options...,
 					),
-				},
+				),
 			},
 		},
 	}
