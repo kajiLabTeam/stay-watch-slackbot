@@ -102,29 +102,10 @@ func PostRegisterCorrespondCommand(c *gin.Context) {
 		return
 	}
 
-	// tags, err := service.GetTags()
-	// if err != nil {
-	// 	c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
-	// 	return
-	// }
-
-	tags := []Tag{
-		{ID: 1, Name: "スマブラ"},
-		{ID: 2, Name: "Android"},
-		{ID: 3, Name: "iOS"},
-		{ID: 4, Name: "Python"},
-		{ID: 5, Name: "Go"},
-		{ID: 6, Name: "Java"},
-		{ID: 7, Name: "JavaScript"},
-		{ID: 8, Name: "Ruby"},
-		{ID: 9, Name: "PHP"},
-		{ID: 10, Name: "C++"},
-		{ID: 11, Name: "C#"},
-		{ID: 12, Name: "Swift"},
-		{ID: 13, Name: "Kotlin"},
-		{ID: 14, Name: "Rust"},
-		{ID: 15, Name: "Dart"},
-		{ID: 16, Name: "TypeScript"},
+	tags, err := service.GetTags()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		return
 	}
 
 	var options []*slack.OptionBlockObject
