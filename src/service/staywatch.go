@@ -194,7 +194,7 @@ func NotifyByTag() ([]model.User, map[int][]string) {
 	// Step 1: 来訪確率取得 & フィルタ
 	probs := GetStayWatchProbability(users)
 	// log.Default().Println("probability", probs)
-	filtered := filterByThreshold(probs, 0.05)
+	filtered := filterByThreshold(probs, 0.04)
 
 	// Step 2: 来訪・退室時刻の予測を取得し、マージ
 	visitTimes := fetchPredictionTime(filtered, "visit")
