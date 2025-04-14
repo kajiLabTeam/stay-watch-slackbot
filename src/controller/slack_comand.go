@@ -148,8 +148,13 @@ func PostRegisterCorrespondCommand(c *gin.Context) {
 				slack.InputBlock{
 					Type:    slack.MBTInput,
 					BlockID: "tag_select_block",
-					Label:   slack.NewTextBlockObject("plain_text", "話題を選択してください", false, false),
-					Element: slack.NewCheckboxGroupsBlockElement("tag_checkbox", options...),
+					// Label:   slack.NewTextBlockObject("plain_text", "話題を選択してください", false, false),
+					Element: slack.NewOptionsMultiSelectBlockElement(
+						slack.OptTypeStatic,
+						slack.NewTextBlockObject("plain_text", "話題を選択してください", false, false),
+						"tag_checkbox",
+						options...,
+					),
 				},
 			},
 		},
