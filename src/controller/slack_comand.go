@@ -55,12 +55,12 @@ func PostRegisterTagCommand(c *gin.Context) {
 		return
 	}
 	modalRequest := slack.ModalViewRequest{
-		Type:       slack.ViewType("modal"),
-		Title:      slack.NewTextBlockObject("plain_text", "登録フォーム", false, false),
-		Submit:     slack.NewTextBlockObject("plain_text", "送信", false, false),
+		Type:            slack.ViewType("modal"),
+		Title:           slack.NewTextBlockObject("plain_text", "登録フォーム", false, false),
+		Submit:          slack.NewTextBlockObject("plain_text", "送信", false, false),
 		PrivateMetadata: s.ResponseURL,
-		Close:      slack.NewTextBlockObject("plain_text", "閉じる", false, false),
-		CallbackID: "register_tag",
+		Close:           slack.NewTextBlockObject("plain_text", "閉じる", false, false),
+		CallbackID:      "register_tag",
 		Blocks: slack.Blocks{
 			BlockSet: []slack.Block{
 				// 名前
@@ -89,6 +89,11 @@ func PostRegisterTagCommand(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"response_type": "in_channel", "text": "モーダルを開きました。"})
 }
 
+type Tag struct {
+	ID   uint   `json:"id"`
+	Name string `json:"name"`
+}
+
 func PostRegisterCorrespondCommand(c *gin.Context) {
 	s, err := slack.SlashCommandParse(c.Request)
 	if err != nil {
@@ -97,10 +102,19 @@ func PostRegisterCorrespondCommand(c *gin.Context) {
 		return
 	}
 
-	tags, err := service.GetTags()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
-		return
+	// tags, err := service.GetTags()
+	// if err != nil {
+	// 	c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+	// 	return
+	// }
+
+	var tags []Tag
+	tags = []Tag{
+		{ID: 1, Name: "スマブラ"},
+		{ID: 2, Name: "Android"},
+		{ID: 3, Name: "iOS"},
+		{ID: 4, Name: "Python"},
+		{ID: 5, Name: "Go"},
 	}
 
 	var options []*slack.OptionBlockObject
@@ -113,11 +127,11 @@ func PostRegisterCorrespondCommand(c *gin.Context) {
 	}
 
 	modalRequest := slack.ModalViewRequest{
-		Type:       slack.ViewType("modal"),
-		CallbackID: "select_tags",
-		Title:      slack.NewTextBlockObject("plain_text", "ユーザ選択", false, false),
-		Close:      slack.NewTextBlockObject("plain_text", "閉じる", false, false),
-		Submit:     slack.NewTextBlockObject("plain_text", "決定", false, false),
+		Type:            slack.ViewType("modal"),
+		CallbackID:      "select_tags",
+		Title:           slack.NewTextBlockObject("plain_text", "ユーザ選択", false, false),
+		Close:           slack.NewTextBlockObject("plain_text", "閉じる", false, false),
+		Submit:          slack.NewTextBlockObject("plain_text", "決定", false, false),
 		PrivateMetadata: s.ResponseURL,
 		Blocks: slack.Blocks{
 			BlockSet: []slack.Block{
