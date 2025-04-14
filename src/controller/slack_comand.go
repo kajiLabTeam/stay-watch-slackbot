@@ -108,13 +108,23 @@ func PostRegisterCorrespondCommand(c *gin.Context) {
 	// 	return
 	// }
 
-	var tags []Tag
-	tags = []Tag{
+	tags := []Tag{
 		{ID: 1, Name: "スマブラ"},
 		{ID: 2, Name: "Android"},
 		{ID: 3, Name: "iOS"},
 		{ID: 4, Name: "Python"},
 		{ID: 5, Name: "Go"},
+		{ID: 6, Name: "Java"},
+		{ID: 7, Name: "JavaScript"},
+		{ID: 8, Name: "Ruby"},
+		{ID: 9, Name: "PHP"},
+		{ID: 10, Name: "C++"},
+		{ID: 11, Name: "C#"},
+		{ID: 12, Name: "Swift"},
+		{ID: 13, Name: "Kotlin"},
+		{ID: 14, Name: "Rust"},
+		{ID: 15, Name: "Dart"},
+		{ID: 16, Name: "TypeScript"},
 	}
 
 	var options []*slack.OptionBlockObject
