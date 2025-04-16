@@ -184,10 +184,12 @@ func findOverlappingRanges(predictions []Prediction, users []model.User, minNum 
 }
 
 func NotifyByTag() ([]model.User, map[int][]string) {
+	// 翌日の日付を取得
 	loc, _ := time.LoadLocation("Asia/Tokyo")
 	now := time.Now().In(loc)
 	weekdays := [...]string{"日", "月", "火", "水", "木", "金", "土"}
-	formatted := fmt.Sprintf("%d/%d(%s)", now.Month(), now.Day(), weekdays[now.Weekday()])
+	t := now.AddDate(0, 0, 1)
+	formatted := fmt.Sprintf("%d/%d(%s)", t.Month(), t.Day()+1, weekdays[t.Weekday()])
 	var u model.User
 	users, _ := u.ReadAll()
 
