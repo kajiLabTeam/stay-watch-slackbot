@@ -189,7 +189,7 @@ func NotifyByTag() ([]model.User, map[int][]string) {
 	now := time.Now().In(loc)
 	weekdays := [...]string{"日", "月", "火", "水", "木", "金", "土"}
 	t := now.AddDate(0, 0, 1)
-	formatted := fmt.Sprintf("%d/%d(%s)", t.Month(), t.Day()+1, weekdays[t.Weekday()])
+	formatted := fmt.Sprintf("%d/%d(%s)", t.Month(), t.Day(), weekdays[t.Weekday()])
 	var u model.User
 	users, _ := u.ReadAll()
 
