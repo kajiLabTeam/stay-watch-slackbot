@@ -50,5 +50,10 @@ func Router() {
 	r.POST("slack/command/add_correspond", controller.PostRegisterCorrespondCommand)
 	r.GET("/notification", controller.SendDM)
 
+	// Activity prediction endpoints
+	r.GET("/api/v1/prediction/activity/:event_id", controller.GetActivityPredictionHandler)
+	r.GET("/api/v1/prediction/activity/:event_id/weekly", controller.GetWeeklyActivityPredictionsHandler)
+	r.GET("/api/v1/prediction/events", controller.GetAllEventsPredictionsHandler)
+
 	r.Run(":8085")
 }
