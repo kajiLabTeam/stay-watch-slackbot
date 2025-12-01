@@ -19,7 +19,7 @@ services:
 
   db:
     container_name: ${MYSQL_CONTAINER_NAME}
-    image: mysql:8
+    image: mysql:8.4
     volumes:
       - ./docker/db/my.cnf:/etc/mysql/conf.d/my.cnf
     ports:
