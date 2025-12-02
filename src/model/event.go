@@ -8,14 +8,14 @@ func (e *Event) Create() error {
 }
 
 func (e *Event) ReadByID() error {
-	if err := db.Preload("Types").Preload("Tool").First(e, e.ID).Error; err != nil {
+	if err := db.Preload("Type").Preload("Tools").First(e, e.ID).Error; err != nil {
 		return err
 	}
 	return nil
 }
 
 func (e *Event) ReadByName() error {
-	if err := db.Preload("Types").Preload("Tool").Where("name = ?", e.Name).First(e).Error; err != nil {
+	if err := db.Preload("Type").Preload("Tools").Where("name = ?", e.Name).First(e).Error; err != nil {
 		return err
 	}
 	return nil
@@ -23,7 +23,7 @@ func (e *Event) ReadByName() error {
 
 func (e *Event) ReadAll() ([]Event, error) {
 	var events []Event
-	if err := db.Preload("Types").Preload("Tool").Find(&events).Error; err != nil {
+	if err := db.Preload("Type").Preload("Tools").Find(&events).Error; err != nil {
 		return events, err
 	}
 	return events, nil

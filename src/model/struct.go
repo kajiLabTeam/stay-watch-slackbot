@@ -13,19 +13,6 @@ type User struct {
 	Corresponds []Correspond `gorm:"foreignKey:UserID"`
 }
 
-type Tag struct {
-	gorm.Model
-	Name        string
-	MinNumber   int
-	Corresponds []Correspond `gorm:"foreignKey:TagID"`
-}
-
-type Correspond struct {
-	gorm.Model
-	TagID  uint
-	UserID uint
-}
-
 // Status represents the status of an activity (start, end, pose)
 type Status struct {
 	gorm.Model
@@ -34,60 +21,57 @@ type Status struct {
 }
 
 // Types represents the type of an event
-type Types struct {
+type Type struct {
 	gorm.Model
 	Name   string  `gorm:"uniqueIndex;not null"`
-	Events []Event `gorm:"foreignKey:TypesID"`
+	Events []Event `gorm:"foreignKey:TypeID"`
 }
 
 // Tool represents tools used in events
 type Tool struct {
 	gorm.Model
 	Name   string  `gorm:"uniqueIndex;not null"`
-	Events []Event `gorm:"foreignKey:ToolID"`
+	Events []Event `gorm:"many2many:event_tools;"`
 }
 
-// Event represents an activity event (formerly Tag)
+// Event represents an activity event
 type Event struct {
 	gorm.Model
-	Name            string          `gorm:"not null"` // スケジュール、人生ゲーム、入退室、勉強会、ミーティング、作業中
-	TypesID         *uint           // FK to Types
-	Types           *Types          `gorm:"foreignKey:TypesID"`
-	ToolID          *uint           // FK to Tool
-	Tool            *Tool           `gorm:"foreignKey:ToolID"`
-	Correspondences []Correspondence `gorm:"foreignKey:EventID"`
+	Name        string `gorm:"not null"` // スケジュール、人生ゲーム、入退室、勉強会、ミーティング、作業中
+	TypeID      uint
+	Type        Type         `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
+	Tools       []Tool       `gorm:"many2many:event_tools;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
+	Corresponds []Correspond `gorm:"foreignKey:EventID"`
 }
 
-// Correspondence represents the relationship between Event and Tag
-type Correspondence struct {
+// Correspond represents the relationship between Event and Tag
+type Correspond struct {
 	gorm.Model
 	EventID uint
-	Event   Event `gorm:"foreignKey:EventID"`
-	TagID   uint
-	Tag     Tag   `gorm:"foreignKey:TagID"`
-	Logs    []Log `gorm:"foreignKey:CorrespondenceID"`
+	Event   Event `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
+	UserID  uint
+	User    User `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 }
 
 // Log represents activity logs
 type Log struct {
 	gorm.Model
-	Action            string
-	CorrespondenceID  uint
-	Correspondence    Correspondence `gorm:"foreignKey:CorrespondenceID"`
-	StatusID          uint
-	Status            Status `gorm:"foreignKey:StatusID"`
+	EventID  uint
+	Event    Event `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
+	StatusID uint
+	Status   Status `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 }
 
 type UserDetail struct {
 	User             User
 	VisitProbability float64
 	VisitTime        string
-	DeartureTime     string
+	DepartureTime    string
 }
 
 var db *gorm.DB
 
 func init() {
 	db = lib.SqlConnect()
-	db.AutoMigrate(&User{}, &Tag{}, &Correspond{}, &Status{}, &Types{}, &Tool{}, &Event{}, &Correspondence{}, &Log{})
+	db.AutoMigrate(&User{}, &Status{}, &Type{}, &Tool{}, &Event{}, &Correspond{}, &Log{})
 }

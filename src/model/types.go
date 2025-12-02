@@ -1,28 +1,28 @@
 package model
 
-func (t *Types) Create() error {
+func (t *Type) Create() error {
 	if err := db.Create(t).Error; err != nil {
 		return err
 	}
 	return nil
 }
 
-func (t *Types) ReadByID() error {
+func (t *Type) ReadByID() error {
 	if err := db.First(t, t.ID).Error; err != nil {
 		return err
 	}
 	return nil
 }
 
-func (t *Types) ReadByName() error {
+func (t *Type) ReadByName() error {
 	if err := db.Where("name = ?", t.Name).First(t).Error; err != nil {
 		return err
 	}
 	return nil
 }
 
-func (t *Types) ReadAll() ([]Types, error) {
-	var types []Types
+func (t *Type) ReadAll() ([]Type, error) {
+	var types []Type
 	if err := db.Find(&types).Error; err != nil {
 		return types, err
 	}
