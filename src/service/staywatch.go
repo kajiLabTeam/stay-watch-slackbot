@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/kajiLabTeam/stay-watch-slackbot/model"
+	"github.com/kajiLabTeam/stay-watch-slackbot/prediction"
 )
 
 func GetStayWatchMember() ([]StaywatchUsers, error) {
@@ -85,7 +86,7 @@ func filterByThreshold(pro []Probability, threshold float64) []model.User {
 	return filtered
 }
 
-func fetchPredictionTime(users []model.User, action string) []Result {
+func  fetchPredictionTime(users []model.User, action string) []Result {
 	loc, _ := time.LoadLocation("Asia/Tokyo")
 	now := time.Now().In(loc)
 	w := int(now.Weekday())
@@ -130,6 +131,140 @@ func mergePredictions(vr []Result, dr []Result) []Prediction {
 type TimeRange struct {
 	Start string
 	End   string
+}
+
+// ActivityTimeRange 活動の予測時間帯
+type ActivityTimeRange struct {
+	Start string // "HH:MM"
+	End   string // "HH:MM"
+}
+
+// max returns the maximum of two integers
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+// min returns the minimum of two integers
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+// getActivityProbability イベントごとの活動確率を取得する
+func getActivityProbability(eventID uint, dayOfWeek time.Weekday, targetTime string) (float64, error) {
+	// 1. ログを取得
+	logs, weeks, err := model.ReadLogsByEventIDAndDayOfWeek(eventID, dayOfWeek)
+	if err != nil || len(logs) == 0 {
+		return 0.0, nil // データ不足時は 0.0 を返す
+	}
+
+	// 2. Status が "start" のログをフィルタリング
+	var timeStrings []string
+	for _, log := range logs {
+		if log.Status.Name == "start" {
+			timeStr := log.CreatedAt.Format("15:04")
+			timeStrings = append(timeStrings, timeStr)
+		}
+	}
+
+	if len(timeStrings) == 0 {
+		return 0.0, nil
+	}
+
+	// 3. prediction パッケージで確率計算
+	probability, err := prediction.GetProbability(timeStrings, targetTime, weeks)
+	if err != nil {
+		return 0.0, err
+	}
+
+	return probability, nil
+}
+
+// getActivityTimeRange イベントの活動予測時刻範囲を取得する
+func getActivityTimeRange(eventID uint, dayOfWeek time.Weekday) (ActivityTimeRange, error) {
+	logs, weeks, err := model.ReadLogsByEventIDAndDayOfWeek(eventID, dayOfWeek)
+	if err != nil || len(logs) == 0 {
+		return ActivityTimeRange{Start: "00:00", End: "23:59"}, nil
+	}
+
+	// start と end のログを分離
+	var startTimes []string
+	var endTimes []string
+	for _, log := range logs {
+		timeStr := log.CreatedAt.Format("15:04")
+		if log.Status.Name == "start" {
+			startTimes = append(startTimes, timeStr)
+		} else if log.Status.Name == "end" {
+			endTimes = append(endTimes, timeStr)
+		}
+	}
+
+	// 開始時刻の予測
+	var startTime string
+	if len(startTimes) > 0 {
+		startMinutes, err := prediction.GetMostLikelyTime(startTimes, weeks)
+		if err != nil {
+			startTime = "00:00"
+		} else {
+			startTime = prediction.MinutesToTime(startMinutes)
+		}
+	} else {
+		startTime = "00:00"
+	}
+
+	// 終了時刻の予測
+	var endTime string
+	if len(endTimes) > 0 {
+		endMinutes, err := prediction.GetMostLikelyTime(endTimes, weeks)
+		if err != nil {
+			endTime = "23:59"
+		} else {
+			endTime = prediction.MinutesToTime(endMinutes)
+		}
+	} else {
+		endTime = "23:59"
+	}
+
+	return ActivityTimeRange{Start: startTime, End: endTime}, nil
+}
+
+// calculateRecommendedTimeRanges 活動推奨時間を計算する
+func calculateRecommendedTimeRanges(activityRange ActivityTimeRange, occupancyRanges []TimeRange) []TimeRange {
+	var recommendedRanges []TimeRange
+
+	// activityRange を分単位に変換
+	activityStartMinutes, err1 := prediction.TimeToMinutes(activityRange.Start)
+	activityEndMinutes, err2 := prediction.TimeToMinutes(activityRange.End)
+	if err1 != nil || err2 != nil {
+		return recommendedRanges
+	}
+
+	// 各 occupancy range との重なりを計算
+	for _, occupancy := range occupancyRanges {
+		occupancyStartMinutes, err1 := prediction.TimeToMinutes(occupancy.Start)
+		occupancyEndMinutes, err2 := prediction.TimeToMinutes(occupancy.End)
+		if err1 != nil || err2 != nil {
+			continue
+		}
+
+		// 重なりの計算
+		overlapStart := max(activityStartMinutes, occupancyStartMinutes)
+		overlapEnd := min(activityEndMinutes, occupancyEndMinutes)
+
+		if overlapStart < overlapEnd {
+			recommendedRanges = append(recommendedRanges, TimeRange{
+				Start: prediction.MinutesToTime(overlapStart),
+				End:   prediction.MinutesToTime(overlapEnd),
+			})
+		}
+	}
+
+	return recommendedRanges
 }
 
 func findOverlappingRanges(predictions []Prediction, users []model.User, minNum int) []TimeRange {
@@ -188,41 +323,88 @@ func NotifyByEvent() ([]model.User, map[int][]string) {
 	now := time.Now().In(loc)
 	weekdays := [...]string{"日", "月", "火", "水", "木", "金", "土"}
 	formatted := fmt.Sprintf("%d/%d(%s)", now.Month(), now.Day(), weekdays[now.Weekday()])
-	var u model.User
-	users, _ := u.ReadAll()
 
-	// Step 1: 来訪確率取得 & フィルタ
-	probs := GetStayWatchProbability(users)
-	// log.Default().Println("probability", probs)
-	filtered := filterByThreshold(probs, 0.05)
-
-	// Step 2: 来訪・退室時刻の予測を取得し、マージ
-	visitTimes := fetchPredictionTime(filtered, "visit")
-	departureTimes := fetchPredictionTime(filtered, "departure")
-	predictions := mergePredictions(visitTimes, departureTimes)
-
-	// Step 3: イベントごとにユーザをグループ化
-	eventGroups, _ := model.GroupByEvent(filtered)
 	eventGroupWithMSG := make(map[int][]string)
-	// Step 4: イベントごとに滞在時間重なりを検出
-	for _, group := range eventGroups {
-		// log.Default().Println("event", group.Event.Name)
-		// // log.Default().Println("users", group.Users)
-		// for _, u := range group.Users {
-		// 	log.Default().Println("user", u.Name)
-		// }
-		ranges := findOverlappingRanges(predictions, group.Users, group.Event.MinNumber)
-		// log.Default().Println("ranges", ranges)
-		if len(ranges) == 0 {
+
+	// Step 1: 全イベントを取得
+	var e model.Event
+	events, err := e.ReadAll()
+	if err != nil {
+		var u model.User
+		users, _ := u.ReadAll()
+		return users, eventGroupWithMSG
+	}
+
+	// Step 2: 各イベントに対して処理
+	for _, event := range events {
+		// Step 2a: 活動確率を取得（閾値チェック）
+		probability, err := getActivityProbability(event.ID, now.Weekday(), "23:59")
+		if err != nil || probability < 0.30 {
+			continue // 確率が閾値未満の場合スキップ
+		}
+
+		// Step 2b: 活動予測時刻範囲を取得
+		activityRange, err := getActivityTimeRange(event.ID, now.Weekday())
+		if err != nil {
 			continue
 		}
-		for _, r := range ranges {
-			msg := fmt.Sprintf("%s%s〜%s に `%s` の仲間が集まりそうです", formatted, r.Start, r.End, group.Event.Name)
-			// Slack送信（またはログ出力等）
-			eventGroupWithMSG[int(group.Event.ID)] = append(eventGroupWithMSG[int(group.Event.ID)], msg)
-			// 例: slack.SendMessageToEvent(eventName, msg)
+
+		// Step 2c: イベント参加ユーザーを取得
+		correspond := model.Correspond{EventID: event.ID}
+		corresponds, err := correspond.ReadByEventID()
+		if err != nil {
+			continue
+		}
+
+		var eventUsers []model.User
+		for _, c := range corresponds {
+			user := model.User{}
+			user.ID = c.UserID
+			if err := user.ReadByID(); err != nil {
+				continue
+			}
+			eventUsers = append(eventUsers, user)
+		}
+
+		if len(eventUsers) == 0 {
+			continue
+		}
+
+		// Step 2d: ユーザーの来訪確率・時刻を取得
+		probs := GetStayWatchProbability(eventUsers)
+		filtered := filterByThreshold(probs, 0.3)
+
+		if len(filtered) == 0 {
+			continue
+		}
+
+		visitTimes := fetchPredictionTime(filtered, "visit")
+		departureTimes := fetchPredictionTime(filtered, "departure")
+		predictions := mergePredictions(visitTimes, departureTimes)
+
+		// Step 2e: 規定人数在室時間を計算
+		occupancyRanges := findOverlappingRanges(predictions, eventUsers, event.MinNumber)
+
+		if len(occupancyRanges) == 0 {
+			continue
+		}
+
+		// Step 2f: 活動推奨時間を計算
+		recommendedRanges := calculateRecommendedTimeRanges(activityRange, occupancyRanges)
+
+		if len(recommendedRanges) == 0 {
+			continue
+		}
+
+		// Step 2g: メッセージ生成
+		for _, r := range recommendedRanges {
+			msg := fmt.Sprintf("%s %s〜%s  `%s`", formatted, r.Start, r.End, event.Name)
+			eventGroupWithMSG[int(event.ID)] = append(eventGroupWithMSG[int(event.ID)], msg)
 		}
 	}
-	// log.Default().Println("eventGroupWithMSG", eventGroupWithMSG)
+
+	// 全ユーザーを返却（既存の Slack DM 送信との互換性のため）
+	var u model.User
+	users, _ := u.ReadAll()
 	return users, eventGroupWithMSG
 }

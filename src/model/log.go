@@ -1,6 +1,9 @@
 package model
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 func (l *Log) Create() error {
 	if err := db.Create(l).Error; err != nil {
@@ -46,25 +49,47 @@ func ReadLogsByEventIDAndDateRange(eventID uint, startDate, endDate time.Time) (
 }
 
 // ReadByEventIDAndDayOfWeek retrieves logs by event ID and day of week
-func ReadLogsByEventIDAndDayOfWeek(eventID uint, dayOfWeek time.Weekday, weeks int) ([]Log, error) {
+func ReadLogsByEventIDAndDayOfWeek(eventID uint, dayOfWeek time.Weekday) ([]Log, int, error) {
 	var logs []Log
-	endDate := time.Now()
-	startDate := endDate.AddDate(0, 0, -7*weeks)
 
-	if err := db.Where("event_id = ? AND logs.created_at BETWEEN ? AND ?", eventID, startDate, endDate).
+	// dayOfWeekをMysqlのWEEKDAY関数に合わせて変換 (0=月曜日, ..., 6=日曜日)
+	mysqlDayOfWeek := (int(dayOfWeek) + 6) % 7
+
+	// 指定した曜日のログを全て取得
+	if err := db.Where("event_id = ? AND WEEKDAY(logs.created_at) = ?", eventID, mysqlDayOfWeek).
+		Preload("Event").
+		Preload("Status").
+		Find(&logs).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// 週数を計算
+	var weeks int
+	dateMap := make(map[string]bool)
+	for _, log := range logs {
+		year, week := log.CreatedAt.ISOWeek()
+		key := fmt.Sprintf("%d-%d", year, week)
+		dateMap[key] = true
+	}
+	weeks = len(dateMap)
+
+	return logs, weeks, nil
+}
+
+// 指定した週数のログを取得
+func ReadLogsByEventIDAndDayOfWeekWithWeeks(eventID uint, dayOfWeek time.Weekday, weeks int) ([]Log, error) {
+	var logs []Log
+
+	// dayOfWeekをMysqlのWEEKDAY関数に合わせて変換 (0=月曜日, ..., 6=日曜日)
+	mysqlDayOfWeek := (int(dayOfWeek) + 6) % 7
+
+	// 指定した曜日、指定した週数のログを全て取得
+	if err := db.Where("event_id = ? AND WEEKDAY(logs.created_at) = ?", eventID, mysqlDayOfWeek).
 		Preload("Event").
 		Preload("Status").
 		Find(&logs).Error; err != nil {
 		return nil, err
 	}
 
-	// Filter by day of week
-	filteredLogs := make([]Log, 0)
-	for _, log := range logs {
-		if log.CreatedAt.Weekday() == dayOfWeek {
-			filteredLogs = append(filteredLogs, log)
-		}
-	}
-
-	return filteredLogs, nil
+	return logs, nil
 }
