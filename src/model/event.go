@@ -42,3 +42,42 @@ func (e *Event) Delete() error {
 	}
 	return nil
 }
+
+// EventGroup represents an Event with its associated Users
+type EventGroup struct {
+	Event Event
+	Users []User
+}
+
+// GroupByEvent groups users by their associated events
+func GroupByEvent(users []User) ([]EventGroup, error) {
+	var eventGroups []EventGroup
+	eventMap := make(map[uint]*EventGroup)
+
+	for _, user := range users {
+		// Get all corresponds for this user
+		correspond := Correspond{UserID: user.ID}
+		corresponds, err := correspond.ReadByUserID()
+		if err != nil {
+			return nil, err
+		}
+
+		// Add user to each event group
+		for _, c := range corresponds {
+			if _, exists := eventMap[c.EventID]; !exists {
+				eventMap[c.EventID] = &EventGroup{
+					Event: c.Event,
+					Users: []User{},
+				}
+			}
+			eventMap[c.EventID].Users = append(eventMap[c.EventID].Users, user)
+		}
+	}
+
+	// Convert map to slice
+	for _, group := range eventMap {
+		eventGroups = append(eventGroups, *group)
+	}
+
+	return eventGroups, nil
+}

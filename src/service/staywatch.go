@@ -183,7 +183,7 @@ func findOverlappingRanges(predictions []Prediction, users []model.User, minNum 
 	return ranges
 }
 
-func NotifyByTag() ([]model.User, map[int][]string) {
+func NotifyByEvent() ([]model.User, map[int][]string) {
 	loc, _ := time.LoadLocation("Asia/Tokyo")
 	now := time.Now().In(loc)
 	weekdays := [...]string{"日", "月", "火", "水", "木", "金", "土"}
@@ -201,28 +201,28 @@ func NotifyByTag() ([]model.User, map[int][]string) {
 	departureTimes := fetchPredictionTime(filtered, "departure")
 	predictions := mergePredictions(visitTimes, departureTimes)
 
-	// Step 3: タグごとにユーザをグループ化
-	tagGroups, _ := model.GroupByTag(filtered)
-	tagGroupWithMSG := make(map[int][]string)
-	// Step 4: タグごとに滞在時間重なりを検出
-	for _, group := range tagGroups {
-		// log.Default().Println("tag", group.Tag.Name)
+	// Step 3: イベントごとにユーザをグループ化
+	eventGroups, _ := model.GroupByEvent(filtered)
+	eventGroupWithMSG := make(map[int][]string)
+	// Step 4: イベントごとに滞在時間重なりを検出
+	for _, group := range eventGroups {
+		// log.Default().Println("event", group.Event.Name)
 		// // log.Default().Println("users", group.Users)
 		// for _, u := range group.Users {
 		// 	log.Default().Println("user", u.Name)
 		// }
-		ranges := findOverlappingRanges(predictions, group.Users, group.Tag.MinNumber)
+		ranges := findOverlappingRanges(predictions, group.Users, group.Event.MinNumber)
 		// log.Default().Println("ranges", ranges)
 		if len(ranges) == 0 {
 			continue
 		}
 		for _, r := range ranges {
-			msg := fmt.Sprintf("%s%s〜%s に `%s` の仲間が集まりそうです", formatted, r.Start, r.End, group.Tag.Name)
+			msg := fmt.Sprintf("%s%s〜%s に `%s` の仲間が集まりそうです", formatted, r.Start, r.End, group.Event.Name)
 			// Slack送信（またはログ出力等）
-			tagGroupWithMSG[int(group.Tag.ID)] = append(tagGroupWithMSG[int(group.Tag.ID)], msg)
-			// 例: slack.SendMessageToTag(tagName, msg)
+			eventGroupWithMSG[int(group.Event.ID)] = append(eventGroupWithMSG[int(group.Event.ID)], msg)
+			// 例: slack.SendMessageToEvent(eventName, msg)
 		}
 	}
-	// log.Default().Println("tagGroupWithMSG", tagGroupWithMSG)
-	return users, tagGroupWithMSG
+	// log.Default().Println("eventGroupWithMSG", eventGroupWithMSG)
+	return users, eventGroupWithMSG
 }

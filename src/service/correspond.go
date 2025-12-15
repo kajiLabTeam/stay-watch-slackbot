@@ -6,11 +6,11 @@ import (
 	"github.com/kajiLabTeam/stay-watch-slackbot/model"
 )
 
-func RegisterCorrespond(tagName string, slackUserID string) (model.Correspond, error) {
-	tag := model.Tag{
-		Name: tagName,
+func RegisterCorrespond(eventName string, slackUserID string) (model.Correspond, error) {
+	event := model.Event{
+		Name: eventName,
 	}
-	if err := tag.ReadByName(); err != nil {
+	if err := event.ReadByName(); err != nil {
 		return model.Correspond{}, err
 	}
 
@@ -23,15 +23,15 @@ func RegisterCorrespond(tagName string, slackUserID string) (model.Correspond, e
 
 	// DBに対応情報を登録
 	correspond := model.Correspond{
-		UserID: user.ID,
-		TagID:  tag.ID,
+		UserID:  user.ID,
+		EventID: event.ID,
 	}
 	corresponds, err := correspond.ReadByUserID()
 	if err != nil {
 		return correspond, err
 	}
 	for _, c := range corresponds {
-		if c.TagID == tag.ID {
+		if c.EventID == event.ID {
 			err := errors.New("correspond already exists")
 			return correspond, err
 		}

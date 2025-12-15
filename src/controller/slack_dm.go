@@ -9,7 +9,7 @@ import (
 )
 
 func SendDM(c *gin.Context) {
-	users, msg := service.NotifyByTag()
+	users, msg := service.NotifyByEvent()
 
 	if len(users) == 0 {
 		c.JSON(http.StatusOK, gin.H{"error": "No users found"})
@@ -35,7 +35,7 @@ func SendDM(c *gin.Context) {
 			continue
 		}
 		for _, co := range cos {
-			m, ok := msg[int(co.TagID)]
+			m, ok := msg[int(co.EventID)]
 			if !ok {
 				continue
 			}

@@ -38,13 +38,14 @@ type Tool struct {
 type Event struct {
 	gorm.Model
 	Name        string `gorm:"not null"` // スケジュール、人生ゲーム、入退室、勉強会、ミーティング、作業中
+	MinNumber   int    `gorm:"default:2"` // 最低必要人数
 	TypeID      uint
 	Type        Type         `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 	Tools       []Tool       `gorm:"many2many:event_tools;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 	Corresponds []Correspond `gorm:"foreignKey:EventID"`
 }
 
-// Correspond represents the relationship between Event and Tag
+// Correspond represents the relationship between Event and User
 type Correspond struct {
 	gorm.Model
 	EventID uint
