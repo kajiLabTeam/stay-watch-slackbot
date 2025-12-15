@@ -8,13 +8,13 @@ import (
 	"gonum.org/v1/gonum/stat/distuv"
 )
 
-// ClusteringResult represents the result of clustering
+// ClusteringResult クラスタリング結果を表す
 type ClusteringResult struct {
 	Data   []float64 `json:"data"`
 	Center float64   `json:"center"`
 }
 
-// GaussianMixture implements GMM for 1D data
+// GaussianMixture 1次元データに対するGMM（ガウス混合モデル）の実装
 type GaussianMixture struct {
 	NComponents int
 	Means       []float64
@@ -24,7 +24,7 @@ type GaussianMixture struct {
 	Tolerance   float64
 }
 
-// NewGaussianMixture creates a new GMM
+// NewGaussianMixture 新しいGMMを作成する
 func NewGaussianMixture(nComponents int) *GaussianMixture {
 	return &GaussianMixture{
 		NComponents: nComponents,
@@ -33,15 +33,15 @@ func NewGaussianMixture(nComponents int) *GaussianMixture {
 	}
 }
 
-// Fit fits GMM using EM algorithm
+// Fit EMアルゴリズムを使用してGMMを学習する
 func (gmm *GaussianMixture) Fit(data []float64) {
 	n := len(data)
 	k := gmm.NComponents
 
-	// K-means++ style initialization
+	// K-means++スタイルの初期化
 	gmm.initializeKMeansPlusPlus(data)
 
-	// Initialize variances and weights
+	// 分散と重みを初期化
 	gmm.Variances = make([]float64, k)
 	gmm.Weights = make([]float64, k)
 	dataVar := stat.Variance(data, nil)
@@ -53,8 +53,8 @@ func (gmm *GaussianMixture) Fit(data []float64) {
 		gmm.Weights[i] = 1.0 / float64(k)
 	}
 
-	// EM algorithm
-	// responsibilities[i][j] = probability that data i belongs to cluster j
+	// EMアルゴリズム
+	// responsibilities[i][j] = データiがクラスタjに属する確率
 	responsibilities := make([][]float64, n)
 	for i := range responsibilities {
 		responsibilities[i] = make([]float64, k)
@@ -62,7 +62,7 @@ func (gmm *GaussianMixture) Fit(data []float64) {
 	prevLogLikelihood := math.Inf(-1)
 
 	for iter := 0; iter < gmm.MaxIter; iter++ {
-		// E-step: calculate responsibilities
+		// Eステップ: 負担率を計算
 		for i, x := range data {
 			var total float64
 			probs := make([]float64, k)
@@ -83,7 +83,7 @@ func (gmm *GaussianMixture) Fit(data []float64) {
 			}
 		}
 
-		// M-step: update parameters
+		// Mステップ: パラメータを更新
 		for j := 0; j < k; j++ {
 			var nk, meanSum, varSum float64
 			for i := 0; i < n; i++ {
@@ -104,7 +104,7 @@ func (gmm *GaussianMixture) Fit(data []float64) {
 			}
 		}
 
-		// Calculate log-likelihood and check convergence
+		// 対数尤度を計算し、収束をチェック
 		logLikelihood := gmm.logLikelihood(data)
 		if math.Abs(logLikelihood-prevLogLikelihood) < gmm.Tolerance {
 			break
@@ -113,7 +113,7 @@ func (gmm *GaussianMixture) Fit(data []float64) {
 	}
 }
 
-// initializeKMeansPlusPlus selects initial centers using K-means++
+// initializeKMeansPlusPlus K-means++を使用して初期中心を選択する
 func (gmm *GaussianMixture) initializeKMeansPlusPlus(data []float64) {
 	n := len(data)
 	k := gmm.NComponents
@@ -123,10 +123,10 @@ func (gmm *GaussianMixture) initializeKMeansPlusPlus(data []float64) {
 		return
 	}
 
-	// Select first center randomly
+	// 最初の中心をランダムに選択
 	gmm.Means[0] = data[rand.Intn(n)]
 
-	// Select remaining centers with probability proportional to squared distance
+	// 残りの中心を距離の二乗に比例した確率で選択
 	for i := 1; i < k; i++ {
 		distances := make([]float64, n)
 		var totalDist float64
@@ -143,7 +143,7 @@ func (gmm *GaussianMixture) initializeKMeansPlusPlus(data []float64) {
 			totalDist += minDist
 		}
 
-		// Select with probability proportional to distance
+		// 距離に比例した確率で選択
 		if totalDist > 0 {
 			r := rand.Float64() * totalDist
 			var cumSum float64
@@ -160,7 +160,7 @@ func (gmm *GaussianMixture) initializeKMeansPlusPlus(data []float64) {
 	}
 }
 
-// logLikelihood calculates log-likelihood
+// logLikelihood 対数尤度を計算する
 func (gmm *GaussianMixture) logLikelihood(data []float64) float64 {
 	var ll float64
 	for _, x := range data {
@@ -179,7 +179,7 @@ func (gmm *GaussianMixture) logLikelihood(data []float64) float64 {
 	return ll
 }
 
-// Predict predicts cluster for each data point
+// Predict 各データポイントのクラスタを予測する
 func (gmm *GaussianMixture) Predict(data []float64) []int {
 	labels := make([]int, len(data))
 	for i, x := range data {
@@ -201,25 +201,25 @@ func (gmm *GaussianMixture) Predict(data []float64) []int {
 	return labels
 }
 
-// BIC calculates Bayesian Information Criterion
+// BIC ベイズ情報量基準（BIC）を計算する
 func (gmm *GaussianMixture) BIC(data []float64) float64 {
 	n := float64(len(data))
 	k := float64(gmm.NComponents)
-	// Number of parameters: k means + k variances + (k-1) weights
+	// パラメータ数: k個の平均 + k個の分散 + (k-1)個の重み
 	numParams := 3*k - 1
 	ll := gmm.logLikelihood(data)
 	return -2*ll + numParams*math.Log(n)
 }
 
-// Clustering clusters data (equivalent to original Python implementation)
+// Clustering データをクラスタリングする（元のPython実装と同等）
 func Clustering(data []int) []ClusteringResult {
-	// Convert int to float64
+	// intをfloat64に変換
 	floatData := make([]float64, len(data))
 	for i, v := range data {
 		floatData[i] = float64(v)
 	}
 
-	// Find optimal number of clusters using BIC
+	// BICを使用して最適なクラスタ数を見つける
 	maxClusters := 4
 	if len(floatData) < maxClusters {
 		maxClusters = len(floatData)
@@ -235,7 +235,7 @@ func Clustering(data []int) []ClusteringResult {
 		gmms = append(gmms, gmm)
 	}
 
-	// Select cluster number with minimum BIC
+	// 最小BICのクラスタ数を選択
 	optimalIdx := 0
 	minBIC := bicValues[0]
 	for i, bic := range bicValues {
@@ -249,12 +249,12 @@ func Clustering(data []int) []ClusteringResult {
 	return makeResultsList(floatData, optimalGMM)
 }
 
-// makeResultsList converts clustering results to list
+// makeResultsList クラスタリング結果をリストに変換する
 func makeResultsList(data []float64, gmm *GaussianMixture) []ClusteringResult {
 	labels := gmm.Predict(data)
 	nClusters := gmm.NComponents
 
-	// Split data by cluster
+	// クラスタごとにデータを分割
 	clusters := make([][]float64, nClusters)
 	for i := 0; i < nClusters; i++ {
 		clusters[i] = []float64{}
@@ -264,7 +264,7 @@ func makeResultsList(data []float64, gmm *GaussianMixture) []ClusteringResult {
 		clusters[label] = append(clusters[label], data[i])
 	}
 
-	// Build results
+	// 結果を構築
 	results := make([]ClusteringResult, nClusters)
 	for i := 0; i < nClusters; i++ {
 		results[i] = ClusteringResult{
