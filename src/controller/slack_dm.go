@@ -9,17 +9,23 @@ import (
 )
 
 func SendDM(c *gin.Context) {
-	users, msg := service.NotifyByEvent()
+	users, userMessages := service.NotifyByEvent()
 
 	if len(users) == 0 {
 		c.JSON(http.StatusOK, gin.H{"error": "No users found"})
 		return
 	}
-	if len(msg) == 0 {
+	if len(userMessages) == 0 {
 		c.JSON(http.StatusOK, gin.H{"error": "No message found"})
 		return
 	}
 	for _, user := range users {
+		// ユーザー専用のメッセージを取得
+		eventMessages, hasMessages := userMessages[int(user.ID)]
+		if !hasMessages || len(eventMessages) == 0 {
+			continue
+		}
+
 		channel, _, _, err := api.OpenConversation(&slack.OpenConversationParameters{
 			ReturnIM: true,
 			Users:    []string{user.SlackID},
@@ -29,13 +35,14 @@ func SendDM(c *gin.Context) {
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to open conversation"})
 		}
-		message := "【おしらせ】\n"
+		message := ""
 		cos := user.Corresponds
 		if len(cos) == 0 {
 			continue
 		}
 		for _, co := range cos {
-			m, ok := msg[int(co.EventID)]
+			// ユーザー専用メッセージからイベントIDでメッセージを取得
+			m, ok := eventMessages[int(co.EventID)]
 			if !ok {
 				continue
 			}
@@ -43,7 +50,7 @@ func SendDM(c *gin.Context) {
 				message += v + "\n"
 			}
 		}
-		if message == "【おしらせ】\n" {
+		if message == "" {
 			continue
 		}
 		_, _, err = api.PostMessage(channel.ID, slack.MsgOptionText(message, false))

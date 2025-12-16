@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/kajiLabTeam/stay-watch-slackbot/model"
@@ -86,7 +87,7 @@ func filterByThreshold(pro []Probability, threshold float64) []model.User {
 	return filtered
 }
 
-func  fetchPredictionTime(users []model.User, action string) []Result {
+func fetchPredictionTime(users []model.User, action string) []Result {
 	loc, _ := time.LoadLocation("Asia/Tokyo")
 	now := time.Now().In(loc)
 	w := int(now.Weekday())
@@ -318,13 +319,14 @@ func findOverlappingRanges(predictions []Prediction, users []model.User, minNum 
 	return ranges
 }
 
-func NotifyByEvent() ([]model.User, map[int][]string) {
+func NotifyByEvent() ([]model.User, map[int]map[int][]string) {
 	loc, _ := time.LoadLocation("Asia/Tokyo")
 	now := time.Now().In(loc)
 	weekdays := [...]string{"日", "月", "火", "水", "木", "金", "土"}
 	formatted := fmt.Sprintf("%d/%d(%s)", now.Month(), now.Day(), weekdays[now.Weekday()])
 
-	eventGroupWithMSG := make(map[int][]string)
+	// UserID → EventID → messages の構造
+	userMessages := make(map[int]map[int][]string)
 
 	// Step 1: 全イベントを取得
 	var e model.Event
@@ -332,7 +334,7 @@ func NotifyByEvent() ([]model.User, map[int][]string) {
 	if err != nil {
 		var u model.User
 		users, _ := u.ReadAll()
-		return users, eventGroupWithMSG
+		return users, userMessages
 	}
 
 	// Step 2: 各イベントに対して処理
@@ -396,15 +398,183 @@ func NotifyByEvent() ([]model.User, map[int][]string) {
 			continue
 		}
 
-		// Step 2g: メッセージ生成
-		for _, r := range recommendedRanges {
-			msg := fmt.Sprintf("%s %s〜%s  `%s`", formatted, r.Start, r.End, event.Name)
-			eventGroupWithMSG[int(event.ID)] = append(eventGroupWithMSG[int(event.ID)], msg)
+		// Step 2g: ユーザーごとにメッセージ生成
+		for _, eventUser := range eventUsers {
+			// ユーザーの活動イベントIDを取得
+			receiverActivityEventIDs := getUserActivityEventIDs(eventUser.ID)
+
+			for _, r := range recommendedRanges {
+				// 活動推奨時間の部分
+				msg := fmt.Sprintf("%s %s〜%s  `%s`", formatted, r.Start, r.End, event.Name)
+
+				// 「来そうな人」セクションを追加（受信者に応じてフィルタリング）
+				upcomingSection := buildUpcomingUsersSection(
+					filtered,
+					predictions,
+					event.ID,
+					eventUser.ID,
+					receiverActivityEventIDs,
+				)
+				msg += upcomingSection
+
+				// UserID → EventID → messages の構造に追加
+				if userMessages[int(eventUser.ID)] == nil {
+					userMessages[int(eventUser.ID)] = make(map[int][]string)
+				}
+				userMessages[int(eventUser.ID)][int(event.ID)] = append(
+					userMessages[int(eventUser.ID)][int(event.ID)],
+					msg,
+				)
+			}
 		}
 	}
 
 	// 全ユーザーを返却（既存の Slack DM 送信との互換性のため）
 	var u model.User
 	users, _ := u.ReadAll()
-	return users, eventGroupWithMSG
+	return users, userMessages
+}
+
+// findPredictionForUser はユーザーの予測滞在時間を検索する
+func findPredictionForUser(stayWatchID int64, predictions []Prediction) (visit, departure string, found bool) {
+	for _, p := range predictions {
+		if p.UserID == stayWatchID {
+			return p.Visit, p.Departure, true
+		}
+	}
+	return "", "", false
+}
+
+// formatUserLine はユーザー情報を1行のフォーマットされた文字列にする
+func formatUserLine(userName string, activityTags []string, visit, departure string) string {
+	var tagsStr string
+	if len(activityTags) > 0 {
+		for i, tag := range activityTags {
+			if i > 0 {
+				tagsStr += " "
+			}
+			tagsStr += fmt.Sprintf("`%s`", tag)
+		}
+	}
+
+	// タグがある場合とない場合でスペースを調整
+	if tagsStr != "" {
+		return fmt.Sprintf("%s %s  %s~%s", userName, tagsStr, visit, departure)
+	}
+	return fmt.Sprintf("%s  %s~%s", userName, visit, departure)
+}
+
+// getUserActivityEventIDs はユーザーが登録している活動のイベントIDセットを取得する
+func getUserActivityEventIDs(userID uint) map[uint]bool {
+	correspond := model.Correspond{UserID: userID}
+	corresponds, err := correspond.ReadByUserID()
+	if err != nil {
+		return make(map[uint]bool)
+	}
+
+	eventIDs := make(map[uint]bool)
+	for _, c := range corresponds {
+		eventIDs[c.EventID] = true
+	}
+
+	return eventIDs
+}
+
+// filterByCommonActivities は受信者と共通の活動を持つユーザーをフィルタリングする（OR条件）
+func filterByCommonActivities(candidates []model.User, receiverActivityEventIDs map[uint]bool, receiverUserID uint) []model.User {
+	var filtered []model.User
+
+	for _, candidate := range candidates {
+		// 受信者自身は除外
+		if candidate.ID == receiverUserID {
+			continue
+		}
+
+		// 候補者の活動イベントIDを取得
+		candidateEventIDs := getUserActivityEventIDs(candidate.ID)
+
+		// 共通の活動があるかチェック（OR条件）
+		hasCommonActivity := false
+		for eventID := range candidateEventIDs {
+			if receiverActivityEventIDs[eventID] {
+				hasCommonActivity = true
+				break
+			}
+		}
+
+		if hasCommonActivity {
+			filtered = append(filtered, candidate)
+		}
+	}
+
+	return filtered
+}
+
+// getUserActivityTags はユーザーが登録している活動名のリストを取得する
+func getUserActivityTags(userID uint) ([]string, error) {
+	correspond := model.Correspond{UserID: userID}
+	corresponds, err := correspond.ReadByUserID()
+	if err != nil {
+		// エラー時は空配列を返して処理を継続
+		return []string{}, nil
+	}
+
+	var tags []string
+	for _, c := range corresponds {
+		tags = append(tags, c.Event.Name)
+	}
+
+	return tags, nil
+}
+
+// buildUpcomingUsersSection は「来そうな人」セクションを生成する
+func buildUpcomingUsersSection(
+	filtered []model.User,
+	predictions []Prediction,
+	currentEventID uint,
+	receiverUserID uint,
+	receiverActivityEventIDs map[uint]bool,
+) string {
+	if len(filtered) == 0 {
+		return ""
+	}
+
+	// 受信者と共通の活動を持つユーザーだけをフィルタリング
+	commonActivityUsers := filterByCommonActivities(filtered, receiverActivityEventIDs, receiverUserID)
+
+	if len(commonActivityUsers) == 0 {
+		return ""
+	}
+
+	// ユーザーを名前順にソート
+	sortedUsers := make([]model.User, len(commonActivityUsers))
+	copy(sortedUsers, commonActivityUsers)
+	sort.Slice(sortedUsers, func(i, j int) bool {
+		return sortedUsers[i].Name < sortedUsers[j].Name
+	})
+
+	var section strings.Builder
+	section.WriteString("\n来そうな人↓\n")
+
+	for _, user := range sortedUsers {
+		// 予測時刻を取得
+		visit, departure, found := findPredictionForUser(user.StayWatchID, predictions)
+		if !found {
+			// 予測がない場合はスキップ
+			continue
+		}
+
+		// ユーザーの活動タグを取得
+		activityTags, err := getUserActivityTags(user.ID)
+		if err != nil {
+			// エラー時はタグなしで処理を継続
+			activityTags = []string{}
+		}
+
+		// ユーザー行を生成
+		userLine := formatUserLine(user.Name, activityTags, visit, departure)
+		section.WriteString(userLine + "\n")
+	}
+
+	return section.String()
 }
