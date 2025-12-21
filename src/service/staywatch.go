@@ -38,11 +38,9 @@ func GetStayWatchMember() ([]StaywatchUsers, error) {
 	return users, nil
 }
 
-func GetStayWatchProbability(users []model.User) []Probability {
-	loc, _ := time.LoadLocation("Asia/Tokyo")
-	now := time.Now().In(loc)
+func GetStayWatchProbability(users []model.User, weekday time.Weekday) []Probability {
 	timeStr := "23:59"
-	w := int(now.Weekday())
+	w := int(weekday)
 	u, _ := url.Parse(staywatch.BaseURL + staywatch.Probability + "/visit")
 	q := u.Query()
 	for _, user := range users {
@@ -87,10 +85,8 @@ func filterByThreshold(pro []Probability, threshold float64) []model.User {
 	return filtered
 }
 
-func fetchPredictionTime(users []model.User, action string) []Result {
-	loc, _ := time.LoadLocation("Asia/Tokyo")
-	now := time.Now().In(loc)
-	w := int(now.Weekday())
+func fetchPredictionTime(users []model.User, weekday time.Weekday, action string) []Result {
+	w := int(weekday)
 	u, _ := url.Parse(staywatch.BaseURL + staywatch.Time + "/" + action)
 	q := u.Query()
 	for _, user := range users {
@@ -319,10 +315,7 @@ func findOverlappingRanges(predictions []Prediction, users []model.User, minNum 
 	return ranges
 }
 
-func NotifyByEvent() ([]model.User, map[int]map[int][]string) {
-	loc, _ := time.LoadLocation("Asia/Tokyo")
-	now := time.Now().In(loc)
-
+func NotifyByEvent(targetWeekday time.Weekday) ([]model.User, map[int]map[int][]string) {
 	// UserID → EventID → messages の構造
 	userMessages := make(map[int]map[int][]string)
 
@@ -338,13 +331,13 @@ func NotifyByEvent() ([]model.User, map[int]map[int][]string) {
 	// Step 2: 各イベントに対して処理
 	for _, event := range events {
 		// Step 2a: 活動確率を取得（閾値チェック）
-		probability, err := getActivityProbability(event.ID, now.Weekday(), "23:59")
+		probability, err := getActivityProbability(event.ID, targetWeekday, "23:59")
 		if err != nil || probability < 0.30 {
 			continue // 確率が閾値未満の場合スキップ
 		}
 
 		// Step 2b: 活動予測時刻範囲を取得
-		activityRange, err := getActivityTimeRange(event.ID, now.Weekday())
+		activityRange, err := getActivityTimeRange(event.ID, targetWeekday)
 		if err != nil {
 			continue
 		}
@@ -371,15 +364,15 @@ func NotifyByEvent() ([]model.User, map[int]map[int][]string) {
 		}
 
 		// Step 2d: ユーザーの来訪確率・時刻を取得
-		probs := GetStayWatchProbability(eventUsers)
+		probs := GetStayWatchProbability(eventUsers, targetWeekday)
 		filtered := filterByThreshold(probs, 0.3)
 
 		if len(filtered) == 0 {
 			continue
 		}
 
-		visitTimes := fetchPredictionTime(filtered, "visit")
-		departureTimes := fetchPredictionTime(filtered, "departure")
+		visitTimes := fetchPredictionTime(filtered, targetWeekday, "visit")
+		departureTimes := fetchPredictionTime(filtered, targetWeekday, "departure")
 		predictions := mergePredictions(visitTimes, departureTimes)
 
 		// Step 2e: 規定人数在室時間を計算

@@ -2,6 +2,8 @@ package controller
 
 import (
 	"net/http"
+	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/kajiLabTeam/stay-watch-slackbot/service"
@@ -9,7 +11,26 @@ import (
 )
 
 func SendDM(c *gin.Context) {
-	users, userMessages := service.NotifyByEvent()
+	// クエリパラメータから曜日を取得（デフォルトは翌日）
+	weekdayParam := c.DefaultQuery("weekday", "")
+
+	var targetWeekday time.Weekday
+	if weekdayParam == "" {
+		// パラメータが指定されていない場合は翌日
+		loc, _ := time.LoadLocation("Asia/Tokyo")
+		tomorrow := time.Now().In(loc).AddDate(0, 0, 1)
+		targetWeekday = tomorrow.Weekday()
+	} else {
+		// パラメータから曜日を解析（int型として）
+		weekdayInt, err := strconv.Atoi(weekdayParam)
+		if err != nil || weekdayInt < 0 || weekdayInt > 6 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid weekday parameter. Use integer 0-6 (0=Sunday, 1=Monday, ..., 6=Saturday)"})
+			return
+		}
+		targetWeekday = time.Weekday(weekdayInt)
+	}
+
+	users, userMessages := service.NotifyByEvent(targetWeekday)
 
 	if len(users) == 0 {
 		c.JSON(http.StatusOK, gin.H{"error": "No users found"})
