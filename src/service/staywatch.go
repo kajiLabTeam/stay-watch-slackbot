@@ -322,8 +322,6 @@ func findOverlappingRanges(predictions []Prediction, users []model.User, minNum 
 func NotifyByEvent() ([]model.User, map[int]map[int][]string) {
 	loc, _ := time.LoadLocation("Asia/Tokyo")
 	now := time.Now().In(loc)
-	weekdays := [...]string{"日", "月", "火", "水", "木", "金", "土"}
-	formatted := fmt.Sprintf("%d/%d(%s)", now.Month(), now.Day(), weekdays[now.Weekday()])
 
 	// UserID → EventID → messages の構造
 	userMessages := make(map[int]map[int][]string)
@@ -404,8 +402,8 @@ func NotifyByEvent() ([]model.User, map[int]map[int][]string) {
 			receiverActivityEventIDs := getUserActivityEventIDs(eventUser.ID)
 
 			for _, r := range recommendedRanges {
-				// 活動推奨時間の部分
-				msg := fmt.Sprintf("%s %s〜%s  `%s`", formatted, r.Start, r.End, event.Name)
+				// 活動推奨時間の部分（日付と曜日を含まない）
+				msg := fmt.Sprintf("%s〜%s  `%s`", r.Start, r.End, event.Name)
 
 				// 「来そうな人」セクションを追加（受信者に応じてフィルタリング）
 				upcomingSection := buildUpcomingUsersSection(
