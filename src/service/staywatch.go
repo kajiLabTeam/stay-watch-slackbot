@@ -328,6 +328,15 @@ func findOverlappingRanges(predictions []Prediction, users []model.User, minNum 
 	return ranges
 }
 
+// EventActivity は各イベントの活動情報を保持する
+type EventActivity struct {
+	EventID           uint
+	EventName         string
+	RecommendedRanges []TimeRange
+	FilteredUsers     []model.User
+	Predictions       []Prediction
+}
+
 func NotifyByEvent(targetWeekday time.Weekday) ([]model.User, map[int]map[int][]string) {
 	// UserID → EventID → messages の構造
 	userMessages := make(map[int]map[int][]string)
@@ -340,6 +349,9 @@ func NotifyByEvent(targetWeekday time.Weekday) ([]model.User, map[int]map[int][]
 		users, _ := u.ReadAll()
 		return users, userMessages
 	}
+
+	// 各ユーザーに対して、参加する全イベントの活動情報を収集
+	userEventActivities := make(map[uint][]EventActivity)
 
 	// Step 2: 各イベントに対して処理
 	for _, event := range events {
@@ -402,35 +414,106 @@ func NotifyByEvent(targetWeekday time.Weekday) ([]model.User, map[int]map[int][]
 			continue
 		}
 
-		// Step 2g: ユーザーごとにメッセージ生成
-		for _, eventUser := range eventUsers {
-			// ユーザーの活動イベントIDを取得
-			receiverActivityEventIDs := getUserActivityEventIDs(eventUser.ID)
-
-			for _, r := range recommendedRanges {
-				// 活動推奨時間の部分（日付と曜日を含まない）
-				msg := fmt.Sprintf("%s〜%s  `%s`", r.Start, r.End, event.Name)
-
-				// 「来そうな人」セクションを追加（受信者に応じてフィルタリング）
-				upcomingSection := buildUpcomingUsersSection(
-					filtered,
-					predictions,
-					event.ID,
-					eventUser.ID,
-					receiverActivityEventIDs,
-				)
-				msg += upcomingSection
-
-				// UserID → EventID → messages の構造に追加
-				if userMessages[int(eventUser.ID)] == nil {
-					userMessages[int(eventUser.ID)] = make(map[int][]string)
-				}
-				userMessages[int(eventUser.ID)][int(event.ID)] = append(
-					userMessages[int(eventUser.ID)][int(event.ID)],
-					msg,
-				)
-			}
+		// Step 2g: 各ユーザーの活動情報を収集
+		activity := EventActivity{
+			EventID:           event.ID,
+			EventName:         event.Name,
+			RecommendedRanges: recommendedRanges,
+			FilteredUsers:     filtered,
+			Predictions:       predictions,
 		}
+
+		for _, eventUser := range eventUsers {
+			userEventActivities[eventUser.ID] = append(userEventActivities[eventUser.ID], activity)
+		}
+	}
+
+	// Step 3: ユーザーごとにメッセージを生成
+	for userID, activities := range userEventActivities {
+		if len(activities) == 0 {
+			continue
+		}
+
+		// ユーザーの活動イベントIDを取得
+		receiverActivityEventIDs := getUserActivityEventIDs(userID)
+
+		// 全アクティビティの時間帯を先にリストアップ
+		var activityHeaders []string
+		allFilteredUsers := make(map[int64]model.User) // StayWatchID → User
+		var allPredictions []Prediction
+
+		for _, activity := range activities {
+			for _, r := range activity.RecommendedRanges {
+				header := fmt.Sprintf("%s〜%s  `%s`", r.Start, r.End, activity.EventName)
+				activityHeaders = append(activityHeaders, header)
+			}
+
+			// 全ユーザーと予測情報を収集（重複排除）
+			for _, user := range activity.FilteredUsers {
+				allFilteredUsers[user.StayWatchID] = user
+			}
+			allPredictions = append(allPredictions, activity.Predictions...)
+		}
+
+		// 収集したユーザーをスライスに変換
+		var uniqueFilteredUsers []model.User
+		for _, user := range allFilteredUsers {
+			uniqueFilteredUsers = append(uniqueFilteredUsers, user)
+		}
+
+		// 受信者と共通の活動を持つユーザーだけをフィルタリング
+		commonActivityUsers := filterByCommonActivities(uniqueFilteredUsers, receiverActivityEventIDs, userID)
+
+		if len(commonActivityUsers) == 0 {
+			continue
+		}
+
+		// メッセージを組み立て
+		var msgBuilder strings.Builder
+
+		// 1. 全アクティビティの時間帯を記載
+		for _, header := range activityHeaders {
+			msgBuilder.WriteString(header + "\n")
+		}
+
+		// 2. 「来そうな人」セクションを追加
+		msgBuilder.WriteString("\n来そうな人↓\n")
+
+		// ユーザーを名前順にソート
+		sort.Slice(commonActivityUsers, func(i, j int) bool {
+			return commonActivityUsers[i].Name < commonActivityUsers[j].Name
+		})
+
+		for _, user := range commonActivityUsers {
+			// 予測時刻を取得（最初に見つかったものを使用）
+			visit, departure, found := findPredictionForUser(user.StayWatchID, allPredictions)
+			if !found {
+				continue
+			}
+
+			// ユーザーの活動タグを取得
+			activityTags, err := getUserActivityTags(user.ID)
+			if err != nil {
+				activityTags = []string{}
+			}
+
+			// ユーザー行を生成
+			userLine := formatUserLine(user.Name, activityTags, visit, departure)
+			msgBuilder.WriteString(userLine + "\n")
+		}
+
+		msg := msgBuilder.String()
+
+		// UserID → EventID → messages の構造に追加
+		// 全イベントに対して同じメッセージを送る
+		if userMessages[int(userID)] == nil {
+			userMessages[int(userID)] = make(map[int][]string)
+		}
+		// 最初のアクティビティのEventIDをキーとして使用
+		userMessages[int(userID)][int(activities[0].EventID)] = append(
+			userMessages[int(userID)][int(activities[0].EventID)],
+			msg,
+		)
 	}
 
 	// 全ユーザーを返却（既存の Slack DM 送信との互換性のため）
