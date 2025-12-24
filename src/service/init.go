@@ -9,6 +9,7 @@ type StayWatch struct {
 	Users       string
 	Probability string
 	Time        string
+	ApiKey      string
 }
 
 type StaywatchUsers struct {
@@ -49,4 +50,5 @@ func init() {
 	staywatch.Users = s.GetString("staywatch.users")
 	staywatch.Probability = s.GetString("staywatch.probability")
 	staywatch.Time = s.GetString("staywatch.time")
+	staywatch.ApiKey = s.GetString("staywatch.api_key")
 }
