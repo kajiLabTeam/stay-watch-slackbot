@@ -128,6 +128,7 @@ staywatch:
   users: "/api/users"
   probability: "/api/probability"
   time: "/api/time"
+  api_key: "your_api_key_here"
 ```
 
 ### 5. MySQL設定ファイルの作成

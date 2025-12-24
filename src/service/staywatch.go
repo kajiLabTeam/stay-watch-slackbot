@@ -19,6 +19,7 @@ func GetStayWatchMember() ([]StaywatchUsers, error) {
 	if err != nil {
 		return nil, err
 	}
+	req.Header.Set("X-API-Key", staywatch.ApiKey)
 	client := new(http.Client)
 	resp, err := client.Do(req)
 	if err != nil {
@@ -50,7 +51,13 @@ func GetStayWatchProbability(users []model.User) []Probability {
 	q.Add("time", timeStr)
 	u.RawQuery = q.Encode()
 
-	res, err := http.Get(u.String())
+	req, err := http.NewRequest("GET", u.String(), nil)
+	if err != nil {
+		return []Probability{}
+	}
+	req.Header.Set("X-API-Key", staywatch.ApiKey)
+	client := new(http.Client)
+	res, err := client.Do(req)
 	if err != nil {
 		return []Probability{}
 	}
@@ -97,7 +104,13 @@ func fetchPredictionTime(users []model.User, action string) []Result {
 	q.Add("weekday", strconv.Itoa(w))
 	u.RawQuery = q.Encode()
 
-	res, err := http.Get(u.String())
+	req, err := http.NewRequest("GET", u.String(), nil)
+	if err != nil {
+		return []Result{}
+	}
+	req.Header.Set("X-API-Key", staywatch.ApiKey)
+	client := new(http.Client)
+	res, err := client.Do(req)
 	if err != nil {
 		return []Result{}
 	}
