@@ -37,7 +37,7 @@ type Tool struct {
 // Event represents an activity event
 type Event struct {
 	gorm.Model
-	Name        string `gorm:"not null"` // スケジュール、人生ゲーム、入退室、勉強会、ミーティング、作業中
+	Name        string `gorm:"type:varchar(255);uniqueIndex;not null"` // スケジュール、人生ゲーム、入退室、勉強会、ミーティング、作業中
 	MinNumber   int    `gorm:"default:2"` // 最低必要人数
 	TypeID      uint
 	Type        Type         `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
