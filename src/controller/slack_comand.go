@@ -113,11 +113,11 @@ func PostRegisterCorrespondCommand(c *gin.Context) {
 	}
 
 	modalRequest := slack.ModalViewRequest{
-		Type:       slack.VTModal,
-		CallbackID: "select_events",
-		Title:      slack.NewTextBlockObject("plain_text", "ユーザ選択", false, false),
-		Close:      slack.NewTextBlockObject("plain_text", "閉じる", false, false),
-		Submit:     slack.NewTextBlockObject("plain_text", "決定", false, false),
+		Type:            slack.VTModal,
+		CallbackID:      "select_events",
+		Title:           slack.NewTextBlockObject("plain_text", "ユーザ選択", false, false),
+		Close:           slack.NewTextBlockObject("plain_text", "閉じる", false, false),
+		Submit:          slack.NewTextBlockObject("plain_text", "決定", false, false),
 		PrivateMetadata: s.ResponseURL,
 		Blocks: slack.Blocks{
 			BlockSet: []slack.Block{

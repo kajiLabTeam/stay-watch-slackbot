@@ -16,21 +16,21 @@ type User struct {
 // Status represents the status of an activity (start, end, pose)
 type Status struct {
 	gorm.Model
-	Name string `gorm:"uniqueIndex;not null"` // start, end, pose
+	Name string `gorm:"type:varchar(255);uniqueIndex;not null"` // start, end, pose
 	Logs []Log  `gorm:"foreignKey:StatusID"`
 }
 
 // Types represents the type of an event
 type Type struct {
 	gorm.Model
-	Name   string  `gorm:"uniqueIndex;not null"`
+	Name   string  `gorm:"type:varchar(255);uniqueIndex;not null"`
 	Events []Event `gorm:"foreignKey:TypeID"`
 }
 
 // Tool represents tools used in events
 type Tool struct {
 	gorm.Model
-	Name   string  `gorm:"uniqueIndex;not null"`
+	Name   string  `gorm:"type:varchar(255);uniqueIndex;not null"`
 	Events []Event `gorm:"many2many:event_tools;"`
 }
 
