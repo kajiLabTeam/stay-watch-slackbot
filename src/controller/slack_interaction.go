@@ -67,7 +67,7 @@ func PostSlackInteraction(c *gin.Context) {
 	}
 
 	// --- モーダルSubmitの処理 ---
-	if interaction.Type == slack.InteractionTypeViewSubmission && interaction.View.CallbackID == "register_tag" {
+	if interaction.Type == slack.InteractionTypeViewSubmission && interaction.View.CallbackID == "register_event" {
 		values := interaction.View.State.Values
 		responseURL := interaction.View.PrivateMetadata
 		name := values["name_block"]["name_input"].Value
@@ -80,12 +80,12 @@ func PostSlackInteraction(c *gin.Context) {
 		}
 
 		// DB登録などの処理
-		if _, err := service.RegisterTag(name, numInt); err != nil {
-			if err.Error() == "tag already exists" {
+		if _, err := service.RegisterEvent(name, numInt); err != nil {
+			if err.Error() == "event already exists" {
 				api.PostMessage(
 					"",
 					slack.MsgOptionReplaceOriginal(responseURL),
-					slack.MsgOptionText("登録済みのタグです", false),
+					slack.MsgOptionText("登録済みのイベントです", false),
 				)
 				return
 			}
@@ -104,14 +104,14 @@ func PostSlackInteraction(c *gin.Context) {
 		return
 	}
 
-	if interaction.Type == slack.InteractionTypeViewSubmission && interaction.View.CallbackID == "select_tags" {
+	if interaction.Type == slack.InteractionTypeViewSubmission && interaction.View.CallbackID == "select_events" {
 		slackUserID := interaction.User.ID
 		responseURL := interaction.View.PrivateMetadata
-		options := interaction.View.State.Values["tag_select_block"]["tag_checkbox"].SelectedOptions
+		options := interaction.View.State.Values["event_select_block"]["event_checkbox"].SelectedOptions
 
 		for _, opt := range options {
-			tagName := opt.Text.Text
-			service.RegisterCorrespond(tagName, slackUserID)
+			eventName := opt.Text.Text
+			service.RegisterCorrespond(eventName, slackUserID)
 		}
 
 		api.PostMessage("", slack.MsgOptionReplaceOriginal(responseURL), slack.MsgOptionText("登録が完了しました。", false))

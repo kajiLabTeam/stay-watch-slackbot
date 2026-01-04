@@ -47,7 +47,7 @@ func PostRegisterUserCommand(c *gin.Context) {
 	})
 }
 
-func PostRegisterTagCommand(c *gin.Context) {
+func PostRegisterEventCommand(c *gin.Context) {
 	s, err := slack.SlashCommandParse(c.Request)
 	if err != nil {
 		log.Printf("Error parsing slash command: %v", err)
@@ -60,7 +60,7 @@ func PostRegisterTagCommand(c *gin.Context) {
 		Submit:     slack.NewTextBlockObject("plain_text", "送信", false, false),
 		PrivateMetadata: s.ResponseURL,
 		Close:      slack.NewTextBlockObject("plain_text", "閉じる", false, false),
-		CallbackID: "register_tag",
+		CallbackID: "register_event",
 		Blocks: slack.Blocks{
 			BlockSet: []slack.Block{
 				// 名前
@@ -97,35 +97,35 @@ func PostRegisterCorrespondCommand(c *gin.Context) {
 		return
 	}
 
-	tags, err := service.GetTags()
+	events, err := service.GetEvents()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		return
 	}
 
 	var options []*slack.OptionBlockObject
-	for _, tag := range tags {
+	for _, event := range events {
 		option := slack.OptionBlockObject{
-			Text:  slack.NewTextBlockObject("plain_text", tag.Name, false, false),
-			Value: fmt.Sprintf("%d", tag.ID),
+			Text:  slack.NewTextBlockObject("plain_text", event.Name, false, false),
+			Value: fmt.Sprintf("%d", event.ID),
 		}
 		options = append(options, &option)
 	}
 
 	modalRequest := slack.ModalViewRequest{
-		Type:       slack.VTModal,
-		CallbackID: "select_tags",
-		Title:      slack.NewTextBlockObject("plain_text", "ユーザ選択", false, false),
-		Close:      slack.NewTextBlockObject("plain_text", "閉じる", false, false),
-		Submit:     slack.NewTextBlockObject("plain_text", "決定", false, false),
+		Type:            slack.VTModal,
+		CallbackID:      "select_events",
+		Title:           slack.NewTextBlockObject("plain_text", "ユーザ選択", false, false),
+		Close:           slack.NewTextBlockObject("plain_text", "閉じる", false, false),
+		Submit:          slack.NewTextBlockObject("plain_text", "決定", false, false),
 		PrivateMetadata: s.ResponseURL,
 		Blocks: slack.Blocks{
 			BlockSet: []slack.Block{
 				slack.InputBlock{
 					Type:    slack.MBTInput,
-					BlockID: "tag_select_block",
+					BlockID: "event_select_block",
 					Label:   slack.NewTextBlockObject("plain_text", "話題を選択してください", false, false),
-					Element: slack.NewCheckboxGroupsBlockElement("tag_checkbox", options...),
+					Element: slack.NewCheckboxGroupsBlockElement("event_checkbox", options...),
 				},
 			},
 		},

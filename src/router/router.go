@@ -46,8 +46,8 @@ func Router() {
 	r.POST("/slack/interaction", controller.PostSlackInteraction)
 	r.POST("/slack/command/test", controller.PostSlackCommandTest)
 	r.POST("/slack/command/add_user", controller.PostRegisterUserCommand)
-	r.POST("/slack/command/add_tag", controller.PostRegisterTagCommand)
-	r.POST("slack/command/add_correspond", controller.PostRegisterCorrespondCommand)
+	r.POST("/slack/command/add_event", controller.PostRegisterEventCommand)
+	r.POST("/slack/command/add_correspond", controller.PostRegisterCorrespondCommand)
 	r.GET("/notification", controller.SendDM)
 
 	r.Run(":8085")
