@@ -1,3 +1,4 @@
+// Package prediction provides statistical prediction and clustering algorithms.
 package prediction
 
 import (

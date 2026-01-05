@@ -9,7 +9,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func SqlConnect() (database *gorm.DB) {
+func SQLConnect() (database *gorm.DB) {
 	var db *gorm.DB
 	var err error
 	c := conf.GetMysqlConfig()

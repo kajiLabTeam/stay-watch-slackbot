@@ -1,3 +1,4 @@
+// Package service provides business logic and external API integration for the Slack bot.
 package service
 
 import (

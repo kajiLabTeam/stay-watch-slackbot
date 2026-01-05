@@ -1,3 +1,4 @@
+// Package model provides database models and data access methods.
 package model
 
 import (

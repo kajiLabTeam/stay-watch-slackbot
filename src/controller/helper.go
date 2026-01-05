@@ -1,3 +1,4 @@
+// Package controller provides HTTP request handlers for the Slack bot application.
 package controller
 
 import (
