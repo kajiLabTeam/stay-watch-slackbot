@@ -11,7 +11,7 @@ type StayWatch struct {
 	Users       string
 	Probability string
 	Time        string
-	ApiKey      string
+	APIKey      string
 }
 
 // StaywatchUsers はStayWatchシステムのユーザーを表す
@@ -22,7 +22,7 @@ type StaywatchUsers struct {
 
 // Probability はユーザーの来訪確率を表す
 type Probability struct {
-	UserId      int     `json:"userId"`
+	UserID      int     `json:"userId"`
 	UserName    string  `json:"userName"`
 	Probability float64 `json:"probability"`
 }
@@ -58,8 +58,8 @@ func init() {
 	staywatch.Users = s.GetString("staywatch.users")
 	staywatch.Probability = s.GetString("staywatch.probability")
 	staywatch.Time = s.GetString("staywatch.time")
-	staywatch.ApiKey = s.GetString("staywatch.api_key")
+	staywatch.APIKey = s.GetString("staywatch.api_key")
 
 	// StayWatch API クライアントを初期化
-	stayWatchClient = lib.NewStayWatchClient(staywatch.ApiKey)
+	stayWatchClient = lib.NewStayWatchClient(staywatch.APIKey)
 }

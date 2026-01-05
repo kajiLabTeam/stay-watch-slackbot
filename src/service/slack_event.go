@@ -28,19 +28,19 @@ func GetProbability(userID int) (Probability, string, error) {
 	var probability Probability
 	loc, _ := time.LoadLocation("Asia/Tokyo")
 	now := time.Now().In(loc)
-	time_str := now.Format("15:04")
+	timeStr := now.Format("15:04")
 	w := now.Weekday()
 	// 月曜を0とする変換
 	weekday := (int(w) + 6) % 7
 
-	url := buildSingleUserURL(staywatch.Probability+"/visit", userID, weekday, time_str)
+	url := buildSingleUserURL(staywatch.Probability+"/visit", userID, weekday, timeStr)
 
 	var r StayWatchResponse
 	if err := stayWatchClient.Get(url, &r); err != nil {
 		return probability, "", err
 	}
 
-	probability.UserId = userID
+	probability.UserID = userID
 	for _, user := range users {
 		if user.ID == int64(userID) {
 			probability.UserName = user.Name
@@ -48,5 +48,5 @@ func GetProbability(userID int) (Probability, string, error) {
 		}
 	}
 	probability.Probability = r.Result[0].Probability
-	return probability, time_str, nil
+	return probability, timeStr, nil
 }

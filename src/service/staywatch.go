@@ -67,7 +67,7 @@ func GetStayWatchProbability(users []model.User, weekday time.Weekday) []Probabi
 	var probability []Probability
 	for _, result := range r.Result {
 		probability = append(probability, Probability{
-			UserId:      int(result.UserID),
+			UserID:      int(result.UserID),
 			Probability: result.Probability,
 		})
 	}
@@ -80,7 +80,7 @@ func filterByThreshold(pro []Probability, threshold float64) []model.User {
 	var stayWatchIDs []int64
 	for _, u := range pro {
 		if u.Probability >= threshold {
-			stayWatchIDs = append(stayWatchIDs, int64(u.UserId))
+			stayWatchIDs = append(stayWatchIDs, int64(u.UserID))
 		}
 	}
 
