@@ -299,9 +299,9 @@ func NotifyByEvent(targetWeekday time.Weekday) ([]model.User, map[int]map[int][]
 	// UserID → EventID → messages の構造
 	userMessages := make(map[int]map[int][]string)
 
-	// Step 1: 全イベントを取得
+	// Step 1: 全イベントを Corresponds.User を含めて取得（N+1 クエリ問題を回避）
 	var e model.Event
-	events, err := e.ReadAll()
+	events, err := e.ReadAllWithUsers()
 	if err != nil {
 		var u model.User
 		users, _ := u.ReadAll()
@@ -325,21 +325,10 @@ func NotifyByEvent(targetWeekday time.Weekday) ([]model.User, map[int]map[int][]
 			continue
 		}
 
-		// Step 2c: イベント参加ユーザーを取得
-		correspond := model.Correspond{EventID: event.ID}
-		corresponds, err := correspond.ReadByEventID()
-		if err != nil {
-			continue
-		}
-
+		// Step 2c: イベント参加ユーザーを取得（Preload 済みデータを使用）
 		var eventUsers []model.User
-		for _, c := range corresponds {
-			user := model.User{}
-			user.ID = c.UserID
-			if err := user.ReadByID(); err != nil {
-				continue
-			}
-			eventUsers = append(eventUsers, user)
+		for _, c := range event.Corresponds {
+			eventUsers = append(eventUsers, c.User)
 		}
 
 		if len(eventUsers) == 0 {

@@ -29,6 +29,16 @@ func (e *Event) ReadAll() ([]Event, error) {
 	return events, nil
 }
 
+// ReadAllWithUsers は全イベントを Corresponds と User を含めて取得する
+// NotifyByEvent などで N+1 クエリ問題を回避するために使用
+func (e *Event) ReadAllWithUsers() ([]Event, error) {
+	var events []Event
+	if err := db.Preload("Type").Preload("Tools").Preload("Corresponds.User").Find(&events).Error; err != nil {
+		return events, err
+	}
+	return events, nil
+}
+
 func (e *Event) Update() error {
 	if err := db.Save(e).Error; err != nil {
 		return err
