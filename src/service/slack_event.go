@@ -1,9 +1,6 @@
 package service
 
 import (
-	"encoding/json"
-	"io"
-	"net/http"
 	"net/url"
 	"strconv"
 	"time"
@@ -34,7 +31,7 @@ func GetProbability(userID int) (Probability, string, error) {
 	if err != nil {
 		return Probability{}, "", err
 	}
-	
+
 	var probability Probability
 	loc, _ := time.LoadLocation("Asia/Tokyo")
 	now := time.Now().In(loc)
@@ -48,16 +45,12 @@ func GetProbability(userID int) (Probability, string, error) {
 	q.Add("weekday", strconv.Itoa(weekday))
 	q.Add("time", time_str)
 	u.RawQuery = q.Encode()
-	res, err := http.Get(u.String())
-	if err != nil {
-		return probability, "", err
-	}
-	defer res.Body.Close()
-	b, _ := io.ReadAll(res.Body)
+
 	var r StayWatchResponse
-	if err := json.Unmarshal(b, &r); err != nil {
+	if err := stayWatchClient.Get(u.String(), &r); err != nil {
 		return probability, "", err
 	}
+
 	probability.UserId = userID
 	for _, user := range users {
 		if user.ID == int64(userID) {
