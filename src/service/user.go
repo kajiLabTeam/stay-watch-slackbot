@@ -6,15 +6,15 @@ import (
 	"github.com/kajiLabTeam/stay-watch-slackbot/model"
 )
 
-func RegisterUser(slackUseID string, userName string) (model.User, error) {
+func RegisterUser(slackUserID string, userName string) (model.User, error) {
 	// userNameをもとに滞在ウォッチからユーザ情報を取得
 	users, err := GetStayWatchMember()
 	if err != nil {
 		return model.User{}, err
 	}
 	user := model.User{
-		Name:    userName,
-		SlackID: slackUseID,
+		Name:        userName,
+		SlackID:     slackUserID,
 		StayWatchID: int64(0),
 	}
 	if err := user.ReadByName(); err != nil {

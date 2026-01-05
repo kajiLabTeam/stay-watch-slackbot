@@ -8,12 +8,6 @@ import (
 	"github.com/slack-go/slack"
 )
 
-func SlackCallbackEvent() {
-}
-
-func SlackAppMentionEvent() {
-}
-
 func GetUsers() ([]*slack.OptionBlockObject, error) {
 	users, err := GetStayWatchMember()
 	if err != nil {
