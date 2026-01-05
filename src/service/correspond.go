@@ -1,8 +1,6 @@
 package service
 
 import (
-	"errors"
-
 	"github.com/kajiLabTeam/stay-watch-slackbot/model"
 )
 
@@ -26,16 +24,7 @@ func RegisterCorrespond(eventName string, slackUserID string) (model.Correspond,
 		UserID:  user.ID,
 		EventID: event.ID,
 	}
-	corresponds, err := correspond.ReadByUserID()
-	if err != nil {
-		return correspond, err
-	}
-	for _, c := range corresponds {
-		if c.EventID == event.ID {
-			err := errors.New("correspond already exists")
-			return correspond, err
-		}
-	}
+	// DB の UNIQUE 制約により重複登録は自動的にエラーとなる
 	if err := correspond.Create(); err != nil {
 		return correspond, err
 	}
