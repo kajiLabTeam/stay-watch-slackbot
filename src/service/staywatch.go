@@ -1,41 +1,23 @@
 package service
 
 import (
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"net/url"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/kajiLabTeam/stay-watch-slackbot/lib"
 	"github.com/kajiLabTeam/stay-watch-slackbot/model"
 	"github.com/kajiLabTeam/stay-watch-slackbot/prediction"
 )
 
 func GetStayWatchMember() ([]StaywatchUsers, error) {
 	var users []StaywatchUsers
-	req, err := http.NewRequest("GET", staywatch.BaseURL+staywatch.Users, nil)
-	if err != nil {
+	if err := stayWatchClient.Get(staywatch.BaseURL+staywatch.Users, &users); err != nil {
 		return nil, err
 	}
-	req.Header.Set("X-API-Key", staywatch.ApiKey)
-	client := new(http.Client)
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != 200 {
-		return nil, err
-	}
-	body, _ := io.ReadAll(resp.Body)
-	if err := json.Unmarshal(body, &users); err != nil {
-		return nil, err
-	}
-
 	return users, nil
 }
 
@@ -51,20 +33,8 @@ func GetStayWatchProbability(users []model.User, weekday time.Weekday) []Probabi
 	q.Add("time", timeStr)
 	u.RawQuery = q.Encode()
 
-	req, err := http.NewRequest("GET", u.String(), nil)
-	if err != nil {
-		return []Probability{}
-	}
-	req.Header.Set("X-API-Key", staywatch.ApiKey)
-	client := new(http.Client)
-	res, err := client.Do(req)
-	if err != nil {
-		return []Probability{}
-	}
-	defer res.Body.Close()
-	b, _ := io.ReadAll(res.Body)
 	var r StayWatchResponse
-	if err := json.Unmarshal(b, &r); err != nil {
+	if err := stayWatchClient.Get(u.String(), &r); err != nil {
 		return []Probability{}
 	}
 
@@ -102,20 +72,8 @@ func fetchPredictionTime(users []model.User, weekday time.Weekday, action string
 	q.Add("weekday", strconv.Itoa(w))
 	u.RawQuery = q.Encode()
 
-	req, err := http.NewRequest("GET", u.String(), nil)
-	if err != nil {
-		return []Result{}
-	}
-	req.Header.Set("X-API-Key", staywatch.ApiKey)
-	client := new(http.Client)
-	res, err := client.Do(req)
-	if err != nil {
-		return []Result{}
-	}
-	defer res.Body.Close()
-	b, _ := io.ReadAll(res.Body)
 	var r StayWatchResponse
-	if err := json.Unmarshal(b, &r); err != nil {
+	if err := stayWatchClient.Get(u.String(), &r); err != nil {
 		return []Result{}
 	}
 	return r.Result
@@ -221,7 +179,7 @@ func getActivityTimeRange(eventID uint, dayOfWeek time.Weekday) (ActivityTimeRan
 		if err != nil {
 			startTime = "00:00"
 		} else {
-			startTime = prediction.MinutesToTime(startMinutes)
+			startTime = lib.MinutesToTime(startMinutes)
 		}
 	} else {
 		startTime = "00:00"
@@ -234,7 +192,7 @@ func getActivityTimeRange(eventID uint, dayOfWeek time.Weekday) (ActivityTimeRan
 		if err != nil {
 			endTime = "23:59"
 		} else {
-			endTime = prediction.MinutesToTime(endMinutes)
+			endTime = lib.MinutesToTime(endMinutes)
 		}
 	} else {
 		endTime = "23:59"
@@ -248,16 +206,16 @@ func calculateRecommendedTimeRanges(activityRange ActivityTimeRange, occupancyRa
 	var recommendedRanges []TimeRange
 
 	// activityRange を分単位に変換
-	activityStartMinutes, err1 := prediction.TimeToMinutes(activityRange.Start)
-	activityEndMinutes, err2 := prediction.TimeToMinutes(activityRange.End)
+	activityStartMinutes, err1 := lib.TimeToMinutes(activityRange.Start)
+	activityEndMinutes, err2 := lib.TimeToMinutes(activityRange.End)
 	if err1 != nil || err2 != nil {
 		return recommendedRanges
 	}
 
 	// 各 occupancy range との重なりを計算
 	for _, occupancy := range occupancyRanges {
-		occupancyStartMinutes, err1 := prediction.TimeToMinutes(occupancy.Start)
-		occupancyEndMinutes, err2 := prediction.TimeToMinutes(occupancy.End)
+		occupancyStartMinutes, err1 := lib.TimeToMinutes(occupancy.Start)
+		occupancyEndMinutes, err2 := lib.TimeToMinutes(occupancy.End)
 		if err1 != nil || err2 != nil {
 			continue
 		}
@@ -268,8 +226,8 @@ func calculateRecommendedTimeRanges(activityRange ActivityTimeRange, occupancyRa
 
 		if overlapStart < overlapEnd {
 			recommendedRanges = append(recommendedRanges, TimeRange{
-				Start: prediction.MinutesToTime(overlapStart),
-				End:   prediction.MinutesToTime(overlapEnd),
+				Start: lib.MinutesToTime(overlapStart),
+				End:   lib.MinutesToTime(overlapEnd),
 			})
 		}
 	}
@@ -484,6 +442,16 @@ func NotifyByEvent(targetWeekday time.Weekday) ([]model.User, map[int]map[int][]
 			return commonActivityUsers[i].Name < commonActivityUsers[j].Name
 		})
 
+		// ループ前に全ユーザーのタグを一括取得（DB クエリの重複を防ぐ）
+		activityTagsCache := make(map[uint][]string)
+		for _, user := range commonActivityUsers {
+			tags, err := getUserActivityTags(user.ID)
+			if err != nil {
+				tags = []string{}
+			}
+			activityTagsCache[user.ID] = tags
+		}
+
 		for _, user := range commonActivityUsers {
 			// 予測時刻を取得（最初に見つかったものを使用）
 			visit, departure, found := findPredictionForUser(user.StayWatchID, allPredictions)
@@ -491,11 +459,8 @@ func NotifyByEvent(targetWeekday time.Weekday) ([]model.User, map[int]map[int][]
 				continue
 			}
 
-			// ユーザーの活動タグを取得
-			activityTags, err := getUserActivityTags(user.ID)
-			if err != nil {
-				activityTags = []string{}
-			}
+			// キャッシュからユーザーの活動タグを取得
+			activityTags := activityTagsCache[user.ID]
 
 			// ユーザー行を生成
 			userLine := formatUserLine(user.Name, activityTags, visit, departure)
@@ -643,6 +608,16 @@ func buildUpcomingUsersSection(
 	var section strings.Builder
 	section.WriteString("\n来そうな人↓\n")
 
+	// ループ前に全ユーザーのタグを一括取得（DB クエリの重複を防ぐ）
+	activityTagsCache := make(map[uint][]string)
+	for _, user := range sortedUsers {
+		tags, err := getUserActivityTags(user.ID)
+		if err != nil {
+			tags = []string{}
+		}
+		activityTagsCache[user.ID] = tags
+	}
+
 	for _, user := range sortedUsers {
 		// 予測時刻を取得
 		visit, departure, found := findPredictionForUser(user.StayWatchID, predictions)
@@ -651,12 +626,8 @@ func buildUpcomingUsersSection(
 			continue
 		}
 
-		// ユーザーの活動タグを取得
-		activityTags, err := getUserActivityTags(user.ID)
-		if err != nil {
-			// エラー時はタグなしで処理を継続
-			activityTags = []string{}
-		}
+		// キャッシュからユーザーの活動タグを取得
+		activityTags := activityTagsCache[user.ID]
 
 		// ユーザー行を生成
 		userLine := formatUserLine(user.Name, activityTags, visit, departure)
