@@ -7,7 +7,7 @@ import (
 	"github.com/kajiLabTeam/stay-watch-slackbot/model"
 )
 
-// TimeRange 時間範囲
+// TimeRange は時間範囲を表す
 type TimeRange struct {
 	Start string
 	End   string

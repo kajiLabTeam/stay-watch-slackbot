@@ -8,7 +8,7 @@ import (
 	"github.com/kajiLabTeam/stay-watch-slackbot/prediction"
 )
 
-// ActivityTimeRange 活動の予測時間帯
+// ActivityTimeRange は活動の予測時間帯を表す
 type ActivityTimeRange struct {
 	Start string // "HH:MM"
 	End   string // "HH:MM"
