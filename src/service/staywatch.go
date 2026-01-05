@@ -49,17 +49,25 @@ func GetStayWatchProbability(users []model.User, weekday time.Weekday) []Probabi
 }
 
 func filterByThreshold(pro []Probability, threshold float64) []model.User {
-	var filtered []model.User
+	// StayWatchID を収集
+	var stayWatchIDs []int64
 	for _, u := range pro {
 		if u.Probability >= threshold {
-			user := model.User{
-				StayWatchID: int64(u.UserId),
-			}
-			user.ReadByStayWatchID()
-			filtered = append(filtered, user)
+			stayWatchIDs = append(stayWatchIDs, int64(u.UserId))
 		}
 	}
-	return filtered
+
+	if len(stayWatchIDs) == 0 {
+		return []model.User{}
+	}
+
+	// バッチで取得（N+1 クエリ問題を回避）
+	var user model.User
+	users, err := user.ReadByStayWatchIDs(stayWatchIDs)
+	if err != nil {
+		return []model.User{}
+	}
+	return users
 }
 
 func fetchPredictionTime(users []model.User, weekday time.Weekday, action string) []Result {
