@@ -13,6 +13,38 @@ import (
 	"github.com/kajiLabTeam/stay-watch-slackbot/prediction"
 )
 
+// buildStayWatchURL はStayWatch APIのURLを構築する共通ヘルパー関数（複数ユーザー用）
+func buildStayWatchURL(endpoint string, userIDs []int64, weekday int, timeStr string) string {
+	u, _ := url.Parse(staywatch.BaseURL + endpoint)
+	q := u.Query()
+	for _, userID := range userIDs {
+		q.Add("user-id", strconv.Itoa(int(userID)))
+	}
+	if weekday >= 0 {
+		q.Add("weekday", strconv.Itoa(weekday))
+	}
+	if timeStr != "" {
+		q.Add("time", timeStr)
+	}
+	u.RawQuery = q.Encode()
+	return u.String()
+}
+
+// buildSingleUserURL はStayWatch APIのURLを構築する共通ヘルパー関数（単一ユーザー用）
+func buildSingleUserURL(endpoint string, userID int, weekday int, timeStr string) string {
+	u, _ := url.Parse(staywatch.BaseURL + endpoint)
+	q := u.Query()
+	q.Add("user-id", strconv.Itoa(userID))
+	if weekday >= 0 {
+		q.Add("weekday", strconv.Itoa(weekday))
+	}
+	if timeStr != "" {
+		q.Add("time", timeStr)
+	}
+	u.RawQuery = q.Encode()
+	return u.String()
+}
+
 func GetStayWatchMember() ([]StaywatchUsers, error) {
 	var users []StaywatchUsers
 	if err := stayWatchClient.Get(staywatch.BaseURL+staywatch.Users, &users); err != nil {
@@ -22,19 +54,15 @@ func GetStayWatchMember() ([]StaywatchUsers, error) {
 }
 
 func GetStayWatchProbability(users []model.User, weekday time.Weekday) []Probability {
-	timeStr := "23:59"
-	w := int(weekday)
-	u, _ := url.Parse(staywatch.BaseURL + staywatch.Probability + "/visit")
-	q := u.Query()
+	var userIDs []int64
 	for _, user := range users {
-		q.Add("user-id", strconv.Itoa(int(user.StayWatchID)))
+		userIDs = append(userIDs, user.StayWatchID)
 	}
-	q.Add("weekday", strconv.Itoa(w))
-	q.Add("time", timeStr)
-	u.RawQuery = q.Encode()
+
+	url := buildStayWatchURL(staywatch.Probability+"/visit", userIDs, int(weekday), "23:59")
 
 	var r StayWatchResponse
-	if err := stayWatchClient.Get(u.String(), &r); err != nil {
+	if err := stayWatchClient.Get(url, &r); err != nil {
 		return []Probability{}
 	}
 
@@ -71,17 +99,15 @@ func filterByThreshold(pro []Probability, threshold float64) []model.User {
 }
 
 func fetchPredictionTime(users []model.User, weekday time.Weekday, action string) []Result {
-	w := int(weekday)
-	u, _ := url.Parse(staywatch.BaseURL + staywatch.Time + "/" + action)
-	q := u.Query()
+	var userIDs []int64
 	for _, user := range users {
-		q.Add("user-id", strconv.Itoa(int(user.StayWatchID)))
+		userIDs = append(userIDs, user.StayWatchID)
 	}
-	q.Add("weekday", strconv.Itoa(w))
-	u.RawQuery = q.Encode()
+
+	url := buildStayWatchURL(staywatch.Time+"/"+action, userIDs, int(weekday), "")
 
 	var r StayWatchResponse
-	if err := stayWatchClient.Get(u.String(), &r); err != nil {
+	if err := stayWatchClient.Get(url, &r); err != nil {
 		return []Result{}
 	}
 	return r.Result

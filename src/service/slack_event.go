@@ -1,7 +1,6 @@
 package service
 
 import (
-	"net/url"
 	"strconv"
 	"time"
 
@@ -33,15 +32,11 @@ func GetProbability(userID int) (Probability, string, error) {
 	w := now.Weekday()
 	// 月曜を0とする変換
 	weekday := (int(w) + 6) % 7
-	u, _ := url.Parse(staywatch.BaseURL + staywatch.Probability + "/visit")
-	q := u.Query()
-	q.Add("user-id", strconv.Itoa(userID))
-	q.Add("weekday", strconv.Itoa(weekday))
-	q.Add("time", time_str)
-	u.RawQuery = q.Encode()
+
+	url := buildSingleUserURL(staywatch.Probability+"/visit", userID, weekday, time_str)
 
 	var r StayWatchResponse
-	if err := stayWatchClient.Get(u.String(), &r); err != nil {
+	if err := stayWatchClient.Get(url, &r); err != nil {
 		return probability, "", err
 	}
 
