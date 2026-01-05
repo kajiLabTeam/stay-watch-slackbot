@@ -1,7 +1,9 @@
 package controller
 
 import (
+	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
@@ -11,6 +13,15 @@ import (
 )
 
 func SendDM(c *gin.Context) {
+	// ログファイルを開く
+	logFile, err := os.OpenFile("log/dm_send.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to open log file"})
+		return
+	}
+	defer logFile.Close()
+	logger := log.New(logFile, "", 0)
+
 	// クエリパラメータから曜日を取得（デフォルトは翌日）
 	weekdayParam := c.DefaultQuery("weekday", "")
 
@@ -77,6 +88,15 @@ func SendDM(c *gin.Context) {
 		_, _, err = api.PostMessage(channel.ID, slack.MsgOptionText(message, false))
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to send message"})
+		} else {
+			// 送信成功時にログを記録
+			loc, _ := time.LoadLocation("Asia/Tokyo")
+			now := time.Now().In(loc)
+			logger.Printf("[%s] 送信先: %s (SlackID: %s)\n推奨活動内容:\n%s\n---\n",
+				now.Format("2006-01-02 15:04:05"),
+				user.Name,
+				user.SlackID,
+				message)
 		}
 	}
 }
