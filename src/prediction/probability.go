@@ -2,39 +2,11 @@ package prediction
 
 import (
 	"fmt"
-	"strconv"
-	"strings"
 
+	"github.com/kajiLabTeam/stay-watch-slackbot/lib"
 	"gonum.org/v1/gonum/stat"
 	"gonum.org/v1/gonum/stat/distuv"
 )
-
-// TimeToMinutes "HH:MM"形式の時刻を分に変換する
-func TimeToMinutes(timeStr string) (int, error) {
-	parts := strings.Split(timeStr, ":")
-	if len(parts) != 2 {
-		return 0, fmt.Errorf("invalid time format: %s", timeStr)
-	}
-
-	hours, err := strconv.Atoi(parts[0])
-	if err != nil {
-		return 0, fmt.Errorf("invalid hours: %s", parts[0])
-	}
-
-	minutes, err := strconv.Atoi(parts[1])
-	if err != nil {
-		return 0, fmt.Errorf("invalid minutes: %s", parts[1])
-	}
-
-	return hours*60 + minutes, nil
-}
-
-// MinutesToTime 分を"HH:MM"形式に変換する
-func MinutesToTime(minutes int) string {
-	hours := minutes / 60
-	mins := minutes % 60
-	return fmt.Sprintf("%02d:%02d", hours, mins)
-}
 
 // GetProbability 来訪確率を計算する
 // Python版と同等のロジック:
@@ -49,14 +21,14 @@ func GetProbability(data []string, time string, weeks int) (float64, error) {
 	// 時刻文字列を分に変換
 	dataMinutes := make([]int, 0, len(data))
 	for _, d := range data {
-		minutes, err := TimeToMinutes(d)
+		minutes, err := lib.TimeToMinutes(d)
 		if err != nil {
 			return 0, err
 		}
 		dataMinutes = append(dataMinutes, minutes)
 	}
 
-	timeMinutes, err := TimeToMinutes(time)
+	timeMinutes, err := lib.TimeToMinutes(time)
 	if err != nil {
 		return 0, err
 	}
@@ -119,7 +91,7 @@ func GetMostLikelyTime(data []string, weeks int) (int, error) {
 	// 時刻文字列を分に変換
 	dataMinutes := make([]int, 0, len(data))
 	for _, d := range data {
-		minutes, err := TimeToMinutes(d)
+		minutes, err := lib.TimeToMinutes(d)
 		if err != nil {
 			return 0, err
 		}
