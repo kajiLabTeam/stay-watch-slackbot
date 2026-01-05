@@ -2,6 +2,7 @@ package service
 
 import (
 	"github.com/kajiLabTeam/stay-watch-slackbot/conf"
+	"github.com/kajiLabTeam/stay-watch-slackbot/lib"
 )
 
 type StayWatch struct {
@@ -43,6 +44,7 @@ type Prediction struct {
 }
 
 var staywatch StayWatch
+var stayWatchClient *lib.StayWatchClient
 
 func init() {
 	s := conf.GetStayWatchConfig()
@@ -51,4 +53,7 @@ func init() {
 	staywatch.Probability = s.GetString("staywatch.probability")
 	staywatch.Time = s.GetString("staywatch.time")
 	staywatch.ApiKey = s.GetString("staywatch.api_key")
+
+	// StayWatch API クライアントを初期化
+	stayWatchClient = lib.NewStayWatchClient(staywatch.ApiKey)
 }
