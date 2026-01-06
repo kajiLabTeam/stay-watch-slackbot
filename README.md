@@ -313,15 +313,6 @@ curl http://localhost:8085/notification
 | StatusID | uint | ステータスID（外部キー） |
 | Status | Status | ステータス |
 
-### UserDetailテーブル
-
-| カラム | 型 | 説明 |
-| --------- | ----- | ------ |
-| User | User | ユーザー情報 |
-| VisitProbability | float64 | 来訪確率 |
-| VisitTime | string | 来訪時刻 |
-| DepartureTime | string | 退出時刻 |
-
 ### リレーション
 
 - **User ↔ Event**: 多対多（Correspondテーブルで関連付け）
