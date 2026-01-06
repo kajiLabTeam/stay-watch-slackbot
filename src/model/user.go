@@ -35,6 +35,16 @@ func (u *User) ReadByStayWatchID() error {
 	return nil
 }
 
+// ReadByStayWatchIDs は複数の StayWatchID からユーザーをバッチで取得する
+// filterByThreshold などで N+1 クエリ問題を回避するために使用
+func (u *User) ReadByStayWatchIDs(ids []int64) ([]User, error) {
+	var users []User
+	if err := db.Where("stay_watch_id IN ?", ids).Find(&users).Error; err != nil {
+		return nil, err
+	}
+	return users, nil
+}
+
 func (u *User) ReadAll() ([]User, error) {
 	var users []User
 	if err := db.Preload("Corresponds").Find(&users).Error; err != nil {

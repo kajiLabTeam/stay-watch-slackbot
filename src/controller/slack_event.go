@@ -14,25 +14,25 @@ import (
 func PostSlackEvents(c *gin.Context) {
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "bad request"})
+		respondError(c, http.StatusBadRequest, "bad request")
 		return
 	}
 	sv, err := slack.NewSecretsVerifier(c.Request.Header, signingSecret)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "bad request"})
+		respondError(c, http.StatusBadRequest, "bad request")
 		return
 	}
 	if _, err := sv.Write(body); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		respondError(c, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	if err := sv.Ensure(); err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		respondError(c, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 	eventsAPIEvent, err := slackevents.ParseEvent(json.RawMessage(body), slackevents.OptionNoVerifyToken())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		respondError(c, http.StatusInternalServerError, "internal server error")
 		return
 	}
 
@@ -40,7 +40,7 @@ func PostSlackEvents(c *gin.Context) {
 		var r *slackevents.ChallengeResponse
 		err := json.Unmarshal([]byte(body), &r)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+			respondError(c, http.StatusInternalServerError, "internal server error")
 			return
 		}
 		c.Header("Content-Type", "text/plain")
@@ -55,7 +55,7 @@ func PostSlackEvents(c *gin.Context) {
 			obo, err := service.GetUsers()
 			if err != nil {
 				if _, _, err := api.PostMessage(ev.Channel, slack.MsgOptionText("Sorry, I can't get the data.", false)); err != nil {
-					c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+					respondError(c, http.StatusInternalServerError, "internal server error")
 				}
 				return
 			}
@@ -81,7 +81,7 @@ func PostSlackEvents(c *gin.Context) {
 				},
 			))
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+				respondError(c, http.StatusInternalServerError, "internal server error")
 				return
 			}
 			return

@@ -1,21 +1,11 @@
 package service
 
 import (
-	"encoding/json"
-	"io"
-	"net/http"
-	"net/url"
 	"strconv"
 	"time"
 
 	"github.com/slack-go/slack"
 )
-
-func SlackCallbackEvent() {
-}
-
-func SlackAppMentionEvent() {
-}
 
 func GetUsers() ([]*slack.OptionBlockObject, error) {
 	users, err := GetStayWatchMember()
@@ -34,31 +24,23 @@ func GetProbability(userID int) (Probability, string, error) {
 	if err != nil {
 		return Probability{}, "", err
 	}
-	
+
 	var probability Probability
 	loc, _ := time.LoadLocation("Asia/Tokyo")
 	now := time.Now().In(loc)
-	time_str := now.Format("15:04")
+	timeStr := now.Format("15:04")
 	w := now.Weekday()
 	// 月曜を0とする変換
 	weekday := (int(w) + 6) % 7
-	u, _ := url.Parse(staywatch.BaseURL + staywatch.Probability + "/visit")
-	q := u.Query()
-	q.Add("user-id", strconv.Itoa(userID))
-	q.Add("weekday", strconv.Itoa(weekday))
-	q.Add("time", time_str)
-	u.RawQuery = q.Encode()
-	res, err := http.Get(u.String())
-	if err != nil {
-		return probability, "", err
-	}
-	defer res.Body.Close()
-	b, _ := io.ReadAll(res.Body)
+
+	url := buildSingleUserURL(staywatch.Probability+"/visit", userID, weekday, timeStr)
+
 	var r StayWatchResponse
-	if err := json.Unmarshal(b, &r); err != nil {
+	if err := stayWatchClient.Get(url, &r); err != nil {
 		return probability, "", err
 	}
-	probability.UserId = userID
+
+	probability.UserID = userID
 	for _, user := range users {
 		if user.ID == int64(userID) {
 			probability.UserName = user.Name
@@ -66,5 +48,5 @@ func GetProbability(userID int) (Probability, string, error) {
 		}
 	}
 	probability.Probability = r.Result[0].Probability
-	return probability, time_str, nil
+	return probability, timeStr, nil
 }

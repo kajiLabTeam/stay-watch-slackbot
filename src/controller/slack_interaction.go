@@ -15,7 +15,7 @@ func PostSlackInteraction(c *gin.Context) {
 
 	var interaction slack.InteractionCallback
 	if err := json.Unmarshal([]byte(payload), &interaction); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+		respondError(c, http.StatusBadRequest, "invalid payload")
 		return
 	}
 
@@ -27,7 +27,7 @@ func PostSlackInteraction(c *gin.Context) {
 		case "select_user":
 			userID, err := strconv.Atoi(action.SelectedOption.Value)
 			if err != nil {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
+				respondError(c, http.StatusBadRequest, "invalid user id")
 				return
 			}
 
@@ -75,7 +75,7 @@ func PostSlackInteraction(c *gin.Context) {
 
 		numInt, err := strconv.Atoi(numStr)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "number must be an integer"})
+			respondError(c, http.StatusBadRequest, "number must be an integer")
 			return
 		}
 
@@ -120,6 +120,6 @@ func PostSlackInteraction(c *gin.Context) {
 		return
 	}
 
-	// どの処理にも該当しない場合ß
+	// どの処理にも該当しない場合
 	c.JSON(http.StatusOK, gin.H{})
 }

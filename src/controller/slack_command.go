@@ -10,18 +10,6 @@ import (
 	"github.com/slack-go/slack"
 )
 
-func PostSlackCommandTest(c *gin.Context) {
-	command := c.PostForm("command")
-	text := c.PostForm("text")
-	// userName := c.PostForm("user_name")
-	userID := c.PostForm("user_id")
-
-	c.JSON(http.StatusOK, gin.H{
-		"response_type": "in_channel",
-		"text":          fmt.Sprintf("Command: %s, Text: %s, User: %s", command, text, userID),
-	})
-}
-
 func PostRegisterUserCommand(c *gin.Context) {
 	text := c.PostForm("text")
 	userID := c.PostForm("user_id")
@@ -29,29 +17,20 @@ func PostRegisterUserCommand(c *gin.Context) {
 	_, err := service.RegisterUser(userID, text)
 	if err != nil {
 		if err.Error() == "user already exists" {
-			c.JSON(http.StatusOK, gin.H{
-				"response_type": "in_channel",
-				"text":          fmt.Sprintf("User %s already exists.", text),
-			})
+			respondSlackError(c, fmt.Sprintf("User %s already exists.", text))
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{
-			"response_type": "in_channel",
-			"text":          fmt.Sprintf("Error: %s", err.Error()),
-		})
+		respondSlackError(c, fmt.Sprintf("Error: %s", err.Error()))
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"response_type": "in_channel",
-		"text":          fmt.Sprintf("User %s registered successfully.", text),
-	})
+	respondSlackSuccess(c, fmt.Sprintf("User %s registered successfully.", text))
 }
 
 func PostRegisterEventCommand(c *gin.Context) {
 	s, err := slack.SlashCommandParse(c.Request)
 	if err != nil {
 		log.Printf("Error parsing slash command: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "bad request"})
+		respondError(c, http.StatusBadRequest, "bad request")
 		return
 	}
 	modalRequest := slack.ModalViewRequest{
@@ -83,23 +62,23 @@ func PostRegisterEventCommand(c *gin.Context) {
 	_, err = api.OpenView(s.TriggerID, modalRequest)
 	if err != nil {
 		log.Printf("Error opening view: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		respondError(c, http.StatusInternalServerError, "internal server error")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"response_type": "in_channel", "text": "モーダルを開きました。"})
+	respondSlackSuccess(c, "モーダルを開きました。")
 }
 
 func PostRegisterCorrespondCommand(c *gin.Context) {
 	s, err := slack.SlashCommandParse(c.Request)
 	if err != nil {
 		log.Printf("Error parsing slash command: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "bad request"})
+		respondError(c, http.StatusBadRequest, "bad request")
 		return
 	}
 
 	events, err := service.GetEvents()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		respondError(c, http.StatusInternalServerError, "internal server error")
 		return
 	}
 
@@ -133,8 +112,8 @@ func PostRegisterCorrespondCommand(c *gin.Context) {
 	_, err = api.OpenView(s.TriggerID, modalRequest)
 	if err != nil {
 		log.Printf("Error opening view: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		respondError(c, http.StatusInternalServerError, "internal server error")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"response_type": "in_channel", "text": "モーダルを開きました。"})
+	respondSlackSuccess(c, "モーダルを開きました。")
 }

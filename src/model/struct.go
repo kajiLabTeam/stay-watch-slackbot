@@ -1,3 +1,4 @@
+// Package model provides database models and data access methods.
 package model
 
 import (
@@ -5,6 +6,7 @@ import (
 	"gorm.io/gorm"
 )
 
+// User はシステムのユーザーを表す
 type User struct {
 	gorm.Model
 	Name        string
@@ -13,28 +15,28 @@ type User struct {
 	Corresponds []Correspond `gorm:"foreignKey:UserID"`
 }
 
-// Status represents the status of an activity (start, end, pose)
+// Status は活動のステータス（start, end, pose）を表す
 type Status struct {
 	gorm.Model
 	Name string `gorm:"type:varchar(255);uniqueIndex;not null"` // start, end, pose
 	Logs []Log  `gorm:"foreignKey:StatusID"`
 }
 
-// Types represents the type of an event
+// Type はイベントのタイプを表す
 type Type struct {
 	gorm.Model
 	Name   string  `gorm:"type:varchar(255);uniqueIndex;not null"`
 	Events []Event `gorm:"foreignKey:TypeID"`
 }
 
-// Tool represents tools used in events
+// Tool はイベントで使用されるツールを表す
 type Tool struct {
 	gorm.Model
 	Name   string  `gorm:"type:varchar(255);uniqueIndex;not null"`
 	Events []Event `gorm:"many2many:event_tools;"`
 }
 
-// Event represents an activity event
+// Event は活動イベントを表す
 type Event struct {
 	gorm.Model
 	Name        string `gorm:"type:varchar(255);uniqueIndex;not null"` // スケジュール、人生ゲーム、入退室、勉強会、ミーティング、作業中
@@ -45,7 +47,7 @@ type Event struct {
 	Corresponds []Correspond `gorm:"foreignKey:EventID"`
 }
 
-// Correspond represents the relationship between Event and User
+// Correspond はEventとUserの関係を表す
 type Correspond struct {
 	gorm.Model
 	EventID uint
@@ -54,7 +56,7 @@ type Correspond struct {
 	User    User `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 }
 
-// Log represents activity logs
+// Log は活動ログを表す
 type Log struct {
 	gorm.Model
 	EventID  uint
@@ -63,6 +65,7 @@ type Log struct {
 	Status   Status `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 }
 
+// UserDetail は来訪予測を含む詳細なユーザー情報を表す
 type UserDetail struct {
 	User             User
 	VisitProbability float64
@@ -73,6 +76,6 @@ type UserDetail struct {
 var db *gorm.DB
 
 func init() {
-	db = lib.SqlConnect()
+	db = lib.SQLConnect()
 	db.AutoMigrate(&User{}, &Status{}, &Type{}, &Tool{}, &Event{}, &Correspond{}, &Log{})
 }

@@ -29,3 +29,13 @@ func (c *Correspond) ReadByUserID() ([]Correspond, error) {
 	}
 	return corresponds, nil
 }
+
+// ReadByUserIDs は複数の UserID から Correspond をバッチで取得する
+// GroupByEvent などで N+1 クエリ問題を回避するために使用
+func (c *Correspond) ReadByUserIDs(userIDs []uint) ([]Correspond, error) {
+	var corresponds []Correspond
+	if err := db.Preload("Event").Where("user_id IN ?", userIDs).Find(&corresponds).Error; err != nil {
+		return nil, err
+	}
+	return corresponds, nil
+}

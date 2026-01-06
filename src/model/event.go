@@ -29,6 +29,16 @@ func (e *Event) ReadAll() ([]Event, error) {
 	return events, nil
 }
 
+// ReadAllWithUsers は全イベントを Corresponds と User を含めて取得する
+// NotifyByEvent などで N+1 クエリ問題を回避するために使用
+func (e *Event) ReadAllWithUsers() ([]Event, error) {
+	var events []Event
+	if err := db.Preload("Type").Preload("Tools").Preload("Corresponds.User").Find(&events).Error; err != nil {
+		return events, err
+	}
+	return events, nil
+}
+
 func (e *Event) Update() error {
 	if err := db.Save(e).Error; err != nil {
 		return err
@@ -51,30 +61,47 @@ type EventGroup struct {
 
 // GroupByEvent groups users by their associated events
 func GroupByEvent(users []User) ([]EventGroup, error) {
-	var eventGroups []EventGroup
-	eventMap := make(map[uint]*EventGroup)
+	if len(users) == 0 {
+		return []EventGroup{}, nil
+	}
 
+	// ステップ1: 全ユーザーIDを収集
+	var userIDs []uint
 	for _, user := range users {
-		// Get all corresponds for this user
-		correspond := Correspond{UserID: user.ID}
-		corresponds, err := correspond.ReadByUserID()
-		if err != nil {
-			return nil, err
-		}
+		userIDs = append(userIDs, user.ID)
+	}
 
-		// Add user to each event group
-		for _, c := range corresponds {
-			if _, exists := eventMap[c.EventID]; !exists {
-				eventMap[c.EventID] = &EventGroup{
-					Event: c.Event,
-					Users: []User{},
-				}
+	// ステップ2: バッチで全 corresponds を取得（N+1 クエリ問題を回避）
+	var c Correspond
+	corresponds, err := c.ReadByUserIDs(userIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	// ステップ3: メモリ上でグループ化
+	eventMap := make(map[uint]*EventGroup)
+	userMap := make(map[uint]User)
+
+	// ユーザーマップを作成
+	for _, user := range users {
+		userMap[user.ID] = user
+	}
+
+	// イベントごとにグループ化
+	for _, correspond := range corresponds {
+		if _, exists := eventMap[correspond.EventID]; !exists {
+			eventMap[correspond.EventID] = &EventGroup{
+				Event: correspond.Event,
+				Users: []User{},
 			}
-			eventMap[c.EventID].Users = append(eventMap[c.EventID].Users, user)
+		}
+		if user, found := userMap[correspond.UserID]; found {
+			eventMap[correspond.EventID].Users = append(eventMap[correspond.EventID].Users, user)
 		}
 	}
 
-	// Convert map to slice
+	// マップをスライスに変換
+	var eventGroups []EventGroup
 	for _, group := range eventMap {
 		eventGroups = append(eventGroups, *group)
 	}

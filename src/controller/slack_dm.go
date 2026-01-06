@@ -16,7 +16,7 @@ func SendDM(c *gin.Context) {
 	// ログファイルを開く
 	logFile, err := os.OpenFile("log/dm_send.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to open log file"})
+		respondError(c, http.StatusInternalServerError, "failed to open log file")
 		return
 	}
 	defer logFile.Close()
@@ -65,7 +65,7 @@ func SendDM(c *gin.Context) {
 		// log.Default().Println("user", user.SlackID)
 		// log.Default().Println("channel", channel.ID)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to open conversation"})
+			respondError(c, http.StatusInternalServerError, "failed to open conversation")
 		}
 		message := ""
 		cos := user.Corresponds
@@ -87,7 +87,7 @@ func SendDM(c *gin.Context) {
 		}
 		_, _, err = api.PostMessage(channel.ID, slack.MsgOptionText(message, false))
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to send message"})
+			respondError(c, http.StatusInternalServerError, "failed to send message")
 		} else {
 			// 送信成功時にログを記録
 			loc, _ := time.LoadLocation("Asia/Tokyo")

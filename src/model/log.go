@@ -36,7 +36,7 @@ func (l *Log) ReadByEventID() ([]Log, error) {
 	return logs, nil
 }
 
-// ReadByEventIDAndDateRange retrieves logs by event ID and date range
+// ReadLogsByEventIDAndDateRange retrieves logs by event ID and date range
 func ReadLogsByEventIDAndDateRange(eventID uint, startDate, endDate time.Time) ([]Log, error) {
 	var logs []Log
 	if err := db.Where("event_id = ? AND logs.created_at BETWEEN ? AND ?", eventID, startDate, endDate).
@@ -48,7 +48,7 @@ func ReadLogsByEventIDAndDateRange(eventID uint, startDate, endDate time.Time) (
 	return logs, nil
 }
 
-// ReadByEventIDAndDayOfWeek retrieves logs by event ID and day of week
+// ReadLogsByEventIDAndDayOfWeek retrieves logs by event ID and day of week
 func ReadLogsByEventIDAndDayOfWeek(eventID uint, dayOfWeek time.Weekday) ([]Log, int, error) {
 	var logs []Log
 
@@ -76,7 +76,7 @@ func ReadLogsByEventIDAndDayOfWeek(eventID uint, dayOfWeek time.Weekday) ([]Log,
 	return logs, weeks, nil
 }
 
-// 指定した週数のログを取得
+// ReadLogsByEventIDAndDayOfWeekWithWeeks retrieves logs by event ID, day of week, and number of weeks
 func ReadLogsByEventIDAndDayOfWeekWithWeeks(eventID uint, dayOfWeek time.Weekday, weeks int) ([]Log, error) {
 	var logs []Log
 

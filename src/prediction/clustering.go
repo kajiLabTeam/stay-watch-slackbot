@@ -1,3 +1,4 @@
+// Package prediction provides statistical prediction and clustering algorithms.
 package prediction
 
 import (
@@ -8,13 +9,13 @@ import (
 	"gonum.org/v1/gonum/stat/distuv"
 )
 
-// ClusteringResult クラスタリング結果を表す
+// ClusteringResult はクラスタリング結果を表す
 type ClusteringResult struct {
 	Data   []float64 `json:"data"`
 	Center float64   `json:"center"`
 }
 
-// GaussianMixture 1次元データに対するGMM（ガウス混合モデル）の実装
+// GaussianMixture は1次元データに対するガウス混合モデル（GMM）を実装する
 type GaussianMixture struct {
 	NComponents int
 	Means       []float64
