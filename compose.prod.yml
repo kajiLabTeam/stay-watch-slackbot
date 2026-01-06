@@ -5,6 +5,7 @@ services:
       context: .
       dockerfile: ./docker/app/dockerfile
       target: production  # 本番環境用ステージを指定
+    restart: unless-stopped
     stdin_open: true
     tty: true
     volumes:
@@ -21,6 +22,7 @@ services:
   db:
     container_name: ${MYSQL_CONTAINER_NAME}
     image: mysql:8.4
+    restart: unless-stopped
     volumes:
       - ./docker/db/my.cnf:/etc/mysql/conf.d/my.cnf
       - mysql_data:/var/lib/mysql
