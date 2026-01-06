@@ -1,3 +1,0 @@
-slack:
-  signing_secret: "signing_secret"
-  bot_user_oauth_token: "xoxb-bot_user_oauth_token"

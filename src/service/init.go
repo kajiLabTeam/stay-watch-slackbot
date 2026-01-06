@@ -1,9 +1,17 @@
 package service
 
 import (
-	"github.com/kajiLabTeam/stay-watch-slackbot/conf"
+	"os"
+
 	"github.com/kajiLabTeam/stay-watch-slackbot/lib"
 )
+
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
+}
 
 // StayWatch はStayWatch APIの設定を保持する
 type StayWatch struct {
@@ -49,16 +57,17 @@ type Prediction struct {
 	Departure string
 }
 
-var staywatch StayWatch
-var stayWatchClient *lib.StayWatchClient
+var (
+	staywatch       StayWatch
+	stayWatchClient *lib.StayWatchClient
+)
 
 func init() {
-	s := conf.GetStayWatchConfig()
-	staywatch.BaseURL = s.GetString("staywatch.url")
-	staywatch.Users = s.GetString("staywatch.users")
-	staywatch.Probability = s.GetString("staywatch.probability")
-	staywatch.Time = s.GetString("staywatch.time")
-	staywatch.APIKey = s.GetString("staywatch.api_key")
+	staywatch.BaseURL = getEnv("STAYWATCH_URL", "")
+	staywatch.Users = getEnv("STAYWATCH_USERS_PATH", "")
+	staywatch.Probability = getEnv("STAYWATCH_PROBABILITY_PATH", "")
+	staywatch.Time = getEnv("STAYWATCH_TIME_PATH", "")
+	staywatch.APIKey = getEnv("STAYWATCH_API_KEY", "")
 
 	// StayWatch API クライアントを初期化
 	stayWatchClient = lib.NewStayWatchClient(staywatch.APIKey)

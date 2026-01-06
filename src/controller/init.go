@@ -1,7 +1,8 @@
 package controller
 
 import (
-	"github.com/kajiLabTeam/stay-watch-slackbot/conf"
+	"os"
+
 	"github.com/slack-go/slack"
 )
 
@@ -10,9 +11,16 @@ var (
 	api           *slack.Client
 )
 
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
+}
+
 func init() {
-	s := conf.GetSlackConfig()
-	signingSecret = s.GetString("slack.signing_secret")
-	// api = slack.New(s.GetString("slack.bot_user_oauth_token"), slack.OptionDebug(true))
-	api = slack.New(s.GetString("slack.bot_user_oauth_token"))
+	signingSecret = getEnv("SLACK_SIGNING_SECRET", "")
+	botToken := getEnv("SLACK_BOT_USER_OAUTH_TOKEN", "")
+	// api = slack.New(botToken, slack.OptionDebug(true))
+	api = slack.New(botToken)
 }
