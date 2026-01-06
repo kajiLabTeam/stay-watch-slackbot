@@ -6,42 +6,54 @@
 
 Stay Watch Slackbotは、StayWatch（来訪予測システム）のAPIを利用して、研究室メンバーの来訪確率や時間を予測し、共通の話題（タグ）を持つメンバーが集まりやすい時間帯をSlackのDMで通知します。これにより、自然な交流とコラボレーションを促進します。
 
-![システム構成図](./image.png)
-
 ## 主要機能
 
 ### 1. ユーザー管理
+
 - SlackユーザーとStayWatch IDの紐付け
 - スラッシュコマンドによる簡単なユーザー登録
 
-### 2. タグ（話題）管理
+### 2. イベント管理
+
 - 「スマブラ」「Android」などの興味のある話題を登録
 - 各タグに最低必要人数を設定可能
 - モーダルUIによる直感的な登録
 
-### 3. ユーザーとタグの対応付け
+### 3. ユーザーとイベントの対応付け
+
 - ユーザーが興味のある話題を複数選択可能
 - チェックボックスUIで簡単に設定
 
-### 4. 来訪予測・自動通知
-- StayWatch APIから各ユーザーの来訪確率と時間を取得
-- タグごとに最低人数以上が集まる時間帯を自動計算
-- 該当ユーザーにDMで通知
-  - 例：「12/2(月) 14:00〜18:00 に `スマブラ` の仲間が集まりそうです」
+### 4. イベントの活動履歴管理
 
-### 5. インタラクティブな確率照会
+- 各イベントごとに過去の活動履歴をデータベースに保存
+- 活動履歴を基に、次回の活動予測に活用
+
+### 5. 来訪予測・自動通知
+
+- StayWatch APIから各ユーザーの来訪確率と時間を取得
+- イベントの活動履歴から活動の発生しやすい時間帯を分析
+- イベントごとに最低人数以上が集まる時間帯を自動計算
+- 該当ユーザーにDMで通知
+  - 例：17:35〜19:40  スマブラ
+
+### 6. インタラクティブな確率照会
+
 - ボットにメンションすると、ユーザー選択UIが表示
 - 特定ユーザーの来訪確率をリアルタイムで確認可能
 
 ## 技術スタック
 
-- **言語**: Go 1.24.1
-- **Webフレームワーク**: Gin v1.10.0
-- **データベース**: MySQL 8
-- **ORM**: GORM v1.25.12
-- **Slack SDK**: slack-go/slack v0.16.0
-- **設定管理**: Viper v1.20.1
-- **インフラ**: Docker / Docker Compose
+- **言語**: Go 1.24.5
+- **Webフレームワーク**: Gin v1.11.0
+- **データベース**: MySQL 8.4
+- **ORM**: GORM v1.31.1
+- **Slack SDK**: slack-go/slack v0.17.3
+- **インフラ**:
+  - Docker / Docker Compose
+  - マルチステージビルド（開発/本番環境分離）
+  - 開発環境: air（ホットリロード）
+  - 本番環境: Alpine Linux（軽量コンテナ）
 
 ## 前提条件
 
@@ -151,10 +163,24 @@ mysql:
 
 ### 6. アプリケーションの起動
 
+#### 開発環境（air でホットリロード）
+
 ```bash
 # プロジェクトルートで実行
 docker compose up -d
 ```
+
+開発環境ではairを使用したホットリロードが有効になっており、ソースコードの変更が自動的に反映されます。
+
+#### 本番環境（コンパイル済みバイナリ）
+
+```bash
+# 本番環境用のComposeファイルを使用
+docker compose -f compose.prod.yml up -d
+```
+
+本番環境ではGoバイナリをコンパイルした軽量なAlpineベースのコンテナが起動します。
+コンテナクラッシュ時やサーバー再起動時に自動的に再起動されます。
 
 アプリケーションは `http://localhost:8085` で起動します。
 
@@ -162,40 +188,36 @@ docker compose up -d
 
 ### ユーザーの登録
 
-Slackで以下のコマンドを実行：
+Slackコマンドで自身を登録
 
-```
-/add_user <StayWatch User ID>
-```
-
-例：
-```
-/add_user 123
+``` sh
+/add_user
 ```
 
-### タグ（話題）の登録
+### イベントの登録
 
-```
+``` sh
 /add_tag
 ```
 
-モーダルが開くので、以下を入力：
-- **話題**: スマブラ、Android、機械学習など
+モーダルから各種情報を入力
+
+- **イベント名**: スマブラ、カタン、料理会など
 - **最低人数**: 集まるのに必要な最低人数（例：2）
 
-### タグへの参加
+### イベントへの参加
 
-```
+``` sh
 /add_correspond
 ```
 
-モーダルが開くので、興味のあるタグを複数選択できます。
+モーダルから興味のあるイベントを複数選択できます。
 
 ### 来訪確率の確認
 
 ボットをメンション：
 
-```
+``` sh
 @StayWatchBot
 ```
 
@@ -214,7 +236,7 @@ curl http://localhost:8085/notification
 ## API エンドポイント
 
 | メソッド | エンドポイント | 説明 |
-|---------|--------------|------|
+| --------- | -------------- | ------ |
 | POST | `/slack/events` | Slackイベントの受信 |
 | POST | `/slack/interaction` | Slackインタラクションの処理 |
 | POST | `/slack/command/test` | テストコマンド |
@@ -228,31 +250,104 @@ curl http://localhost:8085/notification
 ### Userテーブル
 
 | カラム | 型 | 説明 |
-|--------|-----|------|
-| ID | uint | 主キー |
+| --------- | ----- | ------ |
+| ID | uint | 主キー（gorm.Model） |
 | Name | string | ユーザー名 |
 | SlackID | string | SlackユーザーID |
 | StayWatchID | int64 | StayWatchユーザーID |
+| Corresponds | []Correspond | ユーザーが参加するイベント |
 
-### Tagテーブル
+### Eventテーブル
 
 | カラム | 型 | 説明 |
-|--------|-----|------|
-| ID | uint | 主キー |
-| Name | string | タグ名（話題） |
-| MinNumber | int | 最低必要人数 |
+| --------- | ----- | ------ |
+| ID | uint | 主キー（gorm.Model） |
+| Name | string | イベント名（スマブラ、カタンなど） |
+| MinNumber | int | 最低必要人数（デフォルト: 2） |
+| TypeID | uint | イベントタイプID（外部キー） |
+| Type | Type | イベントタイプ |
+| Tools | []Tool | 使用するツール（多対多） |
+| Corresponds | []Correspond | イベント参加者 |
+
+### Typeテーブル
+
+| カラム | 型 | 説明 |
+| --------- | ----- | ------ |
+| ID | uint | 主キー（gorm.Model） |
+| Name | string | イベントタイプ名 |
+| Events | []Event | このタイプに属するイベント |
+
+### Toolテーブル
+
+| カラム | 型 | 説明 |
+| --------- | ----- | ------ |
+| ID | uint | 主キー（gorm.Model） |
+| Name | string | ツール名 |
+| Events | []Event | このツールを使用するイベント（多対多） |
 
 ### Correspondテーブル
 
 | カラム | 型 | 説明 |
-|--------|-----|------|
-| ID | uint | 主キー |
-| TagID | uint | タグID（外部キー） |
+| --------- | ----- | ------ |
+| ID | uint | 主キー（gorm.Model） |
+| EventID | uint | イベントID（外部キー） |
+| Event | Event | イベント |
 | UserID | uint | ユーザーID（外部キー） |
+| User | User | ユーザー |
 
-UserとTagは多対多の関係を持ちます。
+### Statusテーブル
+
+| カラム | 型 | 説明 |
+| --------- | ----- | ------ |
+| ID | uint | 主キー（gorm.Model） |
+| Name | string | ステータス名（start, end, pose） |
+| Logs | []Log | このステータスに関連するログ |
+
+### Logテーブル
+
+| カラム | 型 | 説明 |
+| --------- | ----- | ------ |
+| ID | uint | 主キー（gorm.Model） |
+| EventID | uint | イベントID（外部キー） |
+| Event | Event | イベント |
+| StatusID | uint | ステータスID（外部キー） |
+| Status | Status | ステータス |
+
+### UserDetailテーブル
+
+| カラム | 型 | 説明 |
+| --------- | ----- | ------ |
+| User | User | ユーザー情報 |
+| VisitProbability | float64 | 来訪確率 |
+| VisitTime | string | 来訪時刻 |
+| DepartureTime | string | 退出時刻 |
+
+### リレーション
+
+- **User ↔ Event**: 多対多（Correspondテーブルで関連付け）
+- **Event ↔ Type**: 多対1（EventはTypeに属する）
+- **Event ↔ Tool**: 多対多（event_toolsテーブルで関連付け）
+- **Event ↔ Log**: 1対多（Eventは複数のLogを持つ）
+- **Status ↔ Log**: 1対多（Statusは複数のLogを持つ）
 
 ## 開発
+
+### Docker環境について
+
+このプロジェクトでは、開発環境と本番環境でDocker構成を分離しています。
+
+#### 開発環境の特徴
+
+- **ホットリロード**: airによる自動リロード機能
+- **ソースマウント**: ローカルのソースコードをコンテナにマウント
+- **高速な開発サイクル**: コードの変更がすぐに反映
+
+#### 本番環境の特徴
+
+- **軽量イメージ**: Alpine Linuxベースで最小限のサイズ
+- **コンパイル済みバイナリ**: 最適化されたGoバイナリを実行
+- **自動再起動**: `restart: unless-stopped`により自動復旧
+- **データ永続化**: MySQLデータはDockerボリュームで永続化
 
 ### ローカル開発環境
 
@@ -268,7 +363,11 @@ go run main.go
 ### ログの確認
 
 ```bash
+# 開発環境
 docker compose logs -f api
+
+# 本番環境
+docker compose -f compose.prod.yml logs -f api
 ```
 
 または
@@ -283,34 +382,58 @@ tail -f log/server.log
 docker exec -it staywatch_slackbot_db mysql -u kjlb -p app
 ```
 
+### データベースの永続化
+
+MySQLのデータは名前付きボリューム `mysql_data` に永続化されます。
+コンテナを削除しても、データは保持されます。
+
+```bash
+# ボリュームの確認
+docker volume ls | grep mysql_data
+
+# ボリュームの削除（データも削除されるので注意）
+docker volume rm stay-watch-slackbot_mysql_data
+```
+
 ### コンテナの停止
 
 ```bash
+# 開発環境
 docker compose down
+
+# 本番環境
+docker compose -f compose.prod.yml down
 ```
 
 ### コンテナの再ビルド
 
 ```bash
+# 開発環境
 docker compose up -d --build
+
+# 本番環境
+docker compose -f compose.prod.yml up -d --build
 ```
 
 ## プロジェクト構造
 
-```
+``` sh
 stay-watch-slackbot/
-├── compose.yml              # Docker Compose設定
+├── compose.yml              # Docker Compose設定（開発環境）
+├── compose.prod.yml         # Docker Compose設定（本番環境）
 ├── .env                     # 環境変数
 ├── docker/                  # Dockerファイル
 │   ├── app/
-│   │   └── dockerfile
+│   │   └── dockerfile       # マルチステージビルド対応
 │   └── db/
-│       └── my.cnf
+│       └── my.cnf           # MySQL設定
 ├── log/                     # ログファイル
 │   └── server.log
 └── src/                     # ソースコード
     ├── main.go              # エントリーポイント
     ├── go.mod               # Go依存関係管理
+    ├── go.sum
+    ├── .air.toml            # air設定（開発環境用）
     ├── conf/                # 設定管理
     │   ├── config.go
     │   └── environments/    # 環境別設定ファイル
@@ -319,25 +442,40 @@ stay-watch-slackbot/
     │       └── mysql.yml
     ├── controller/          # HTTPハンドラー
     │   ├── init.go
+    │   ├── helper.go
     │   ├── slack_event.go
     │   ├── slack_interaction.go
-    │   ├── slack_comand.go
+    │   ├── slack_command.go
     │   ├── slack_dm.go
     │   └── GAS_event.go
     ├── service/             # ビジネスロジック
     │   ├── init.go
     │   ├── slack_event.go
     │   ├── user.go
-    │   ├── tag.go
+    │   ├── event.go
     │   ├── correspond.go
-    │   └── staywatch.go
+    │   ├── staywatch.go
+    │   ├── activity.go      # 活動履歴管理
+    │   ├── notification.go  # 通知処理
+    │   └── occupancy.go     # 在室状況管理
     ├── model/               # データモデル
-    │   ├── struct.go
+    │   ├── struct.go        # 全モデル定義
     │   ├── user.go
-    │   ├── tag.go
-    │   └── correspond.go
+    │   ├── event.go
+    │   ├── correspond.go
+    │   ├── log.go
+    │   ├── status.go
+    │   ├── tool.go
+    │   └── types.go
+    ├── prediction/          # 予測アルゴリズム
+    │   ├── clustering.go    # クラスタリング
+    │   └── probability.go   # 確率計算
     ├── lib/                 # ユーティリティ
-    │   └── sql.go
+    │   ├── sql.go
+    │   ├── http_client.go
+    │   ├── staywatch_client.go
+    │   ├── math_utils.go
+    │   └── time_utils.go
     └── router/              # ルーティング
         └── router.go
 ```
@@ -356,6 +494,16 @@ stay-watch-slackbot/
 
 - `mysql.yml`の設定が`.env`の設定と一致しているか確認
 - MySQLコンテナが起動しているか確認: `docker compose ps`
+
+### コンテナが自動再起動しない（本番環境）
+
+本番環境で `restart: unless-stopped` が設定されているか確認してください。
+手動で `docker compose stop` した場合は再起動しません。
+
+### データベースのデータが消える
+
+Docker Composeの設定でボリューム定義が正しいか確認してください。
+`docker volume ls` でボリュームが作成されているか確認できます。
 
 ## ライセンス
 
