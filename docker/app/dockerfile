@@ -1,11 +1,43 @@
-FROM golang:1.25.4
+# 開発環境ステージ (air を使用)
+FROM golang:1.25.4 AS development
 
-RUN apt update && apt install -y git &&\
-    apt install -y lsof &&\
+RUN apt update && apt install -y git lsof &&\
     go install github.com/air-verse/air@latest
 
 WORKDIR /stay_watch-slackbot/src
 
-# COPY ./src /root/src
-
 CMD ["air", "-c", ".air.toml"]
+
+# ============================================
+
+# ビルドステージ (バイナリをコンパイル)
+FROM golang:1.25.4 AS builder
+
+WORKDIR /stay_watch-slackbot/src
+
+# 依存関係をコピーしてダウンロード
+COPY ./src/go.mod ./src/go.sum ./
+RUN go mod download
+
+# ソースコードをコピー
+COPY ./src .
+
+# バイナリをビルド
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /app/main .
+
+# ============================================
+
+# 本番環境ステージ (コンパイル済みバイナリを実行)
+FROM alpine:latest AS production
+
+RUN apk --no-cache add ca-certificates tzdata
+
+WORKDIR /app
+
+# ビルドステージからバイナリをコピー
+COPY --from=builder /app/main .
+
+# ログディレクトリを作成
+RUN mkdir -p /stay_watch-slackbot/log
+
+CMD ["./main"]

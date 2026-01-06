@@ -4,11 +4,11 @@ services:
     build:
       context: .
       dockerfile: ./docker/app/dockerfile
-      target: development  # 開発環境用ステージを指定
+      target: production  # 本番環境用ステージを指定
     stdin_open: true
     tty: true
     volumes:
-      - ./src:/stay_watch-slackbot/src
+      # ソースコードのマウントは不要（バイナリが埋め込まれている）
       - ./log:/stay_watch-slackbot/log
     environment:
       - GIN_MODE=${GIN_MODE}
