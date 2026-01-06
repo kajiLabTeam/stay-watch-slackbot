@@ -1,6 +1,0 @@
-staywatch:
-  url: "https://url"
-  users: "path"
-  probability: "path"
-  time: "path"
-  api_key: "your_api_key_here"
