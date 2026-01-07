@@ -79,36 +79,8 @@ func PostSlackInteraction(c *gin.Context) {
 			return
 		}
 
-		// TypeIDを取得
-		var typeID uint = 0
-		if typeBlock, ok := values["type_block"]; ok {
-			if typeSelect, ok := typeBlock["type_select"]; ok && typeSelect.SelectedOption.Value != "" {
-				typeIDInt, err := strconv.Atoi(typeSelect.SelectedOption.Value)
-				if err != nil {
-					respondError(c, http.StatusBadRequest, "type id must be an integer")
-					return
-				}
-				typeID = uint(typeIDInt)
-			}
-		}
-
-		// ToolIDsを取得
-		var toolIDs []uint
-		if toolBlock, ok := values["tool_block"]; ok {
-			if toolCheckbox, ok := toolBlock["tool_checkbox"]; ok {
-				for _, opt := range toolCheckbox.SelectedOptions {
-					toolIDInt, err := strconv.Atoi(opt.Value)
-					if err != nil {
-						respondError(c, http.StatusBadRequest, "tool id must be an integer")
-						return
-					}
-					toolIDs = append(toolIDs, uint(toolIDInt))
-				}
-			}
-		}
-
 		// DB登録などの処理
-		if _, err := service.RegisterEvent(name, numInt, typeID, toolIDs); err != nil {
+		if _, err := service.RegisterEvent(name, numInt); err != nil {
 			if err.Error() == "event already exists" {
 				api.PostMessage(
 					"",
