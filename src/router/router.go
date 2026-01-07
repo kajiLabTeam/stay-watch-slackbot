@@ -43,15 +43,21 @@ func Router() {
 	// 	MaxAge: 24 * time.Hour,
 	// }))
 
+	// Slack endpoints
 	r.POST("/slack/events", controller.PostSlackEvents)
 	r.POST("/slack/interaction", controller.PostSlackInteraction)
 	r.POST("/slack/command/add_user", controller.PostRegisterUserCommand)
 	r.POST("/slack/command/add_event", controller.PostRegisterEventCommand)
 	r.POST("/slack/command/add_correspond", controller.PostRegisterCorrespondCommand)
-	r.POST("/slack/command/add_type", controller.PostRegisterTypeCommand)
-	r.POST("/slack/command/add_tool", controller.PostRegisterToolCommand)
-	r.POST("/slack/command/add_status", controller.PostRegisterStatusCommand)
 	r.GET("/notification", controller.SendDM)
+
+	// REST API endpoints
+	r.POST("/api/types", controller.PostRegisterType)
+	r.GET("/api/types", controller.GetTypes)
+	r.POST("/api/tools", controller.PostRegisterTool)
+	r.GET("/api/tools", controller.GetTools)
+	r.POST("/api/statuses", controller.PostRegisterStatus)
+	r.GET("/api/statuses", controller.GetStatuses)
 
 	r.Run(":8085")
 }
