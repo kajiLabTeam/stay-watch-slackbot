@@ -98,10 +98,10 @@ func PostRegisterEventCommand(c *gin.Context) {
 	// Tool選択を追加（Toolが存在する場合）
 	if len(toolOptions) > 0 {
 		blocks = append(blocks, &slack.InputBlock{
-			Type:    slack.MBTInput,
-			BlockID: "tool_block",
-			Label:   slack.NewTextBlockObject("plain_text", "使用するツールを選択してください（複数選択可）", false, false),
-			Element: slack.NewCheckboxGroupsBlockElement("tool_checkbox", toolOptions...),
+			Type:     slack.MBTInput,
+			BlockID:  "tool_block",
+			Label:    slack.NewTextBlockObject("plain_text", "使用するツールを選択してください（複数選択可）", false, false),
+			Element:  slack.NewCheckboxGroupsBlockElement("tool_checkbox", toolOptions...),
 			Optional: true,
 		})
 	}
