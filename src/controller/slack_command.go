@@ -33,30 +33,88 @@ func PostRegisterEventCommand(c *gin.Context) {
 		respondError(c, http.StatusBadRequest, "bad request")
 		return
 	}
+
+	// Type一覧を取得
+	types, err := service.GetTypes()
+	if err != nil {
+		log.Printf("Error getting types: %v", err)
+		respondError(c, http.StatusInternalServerError, "internal server error")
+		return
+	}
+
+	var typeOptions []*slack.OptionBlockObject
+	for _, t := range types {
+		option := slack.OptionBlockObject{
+			Text:  slack.NewTextBlockObject("plain_text", t.Name, false, false),
+			Value: fmt.Sprintf("%d", t.ID),
+		}
+		typeOptions = append(typeOptions, &option)
+	}
+
+	// Tool一覧を取得
+	tools, err := service.GetTools()
+	if err != nil {
+		log.Printf("Error getting tools: %v", err)
+		respondError(c, http.StatusInternalServerError, "internal server error")
+		return
+	}
+
+	var toolOptions []*slack.OptionBlockObject
+	for _, tool := range tools {
+		option := slack.OptionBlockObject{
+			Text:  slack.NewTextBlockObject("plain_text", tool.Name, false, false),
+			Value: fmt.Sprintf("%d", tool.ID),
+		}
+		toolOptions = append(toolOptions, &option)
+	}
+
+	blocks := []slack.Block{
+		// 名前
+		slack.NewInputBlock(
+			"name_block",
+			slack.NewTextBlockObject("plain_text", "話題を入力してください", false, false),
+			slack.NewTextBlockObject("plain_text", "名前", false, false),
+			slack.NewPlainTextInputBlockElement(slack.NewTextBlockObject("plain_text", "例：スマブラ、Android", false, false), "name_input"),
+		),
+		// 人数
+		slack.NewInputBlock(
+			"number_block",
+			slack.NewTextBlockObject("plain_text", "最低限必要な人数を入力してください", false, false),
+			slack.NewTextBlockObject("plain_text", "人数", false, false),
+			slack.NewPlainTextInputBlockElement(slack.NewTextBlockObject("plain_text", "例：2", false, false), "number_input"),
+		),
+	}
+
+	// Type選択を追加（Typeが存在する場合）
+	if len(typeOptions) > 0 {
+		blocks = append(blocks, slack.NewInputBlock(
+			"type_block",
+			slack.NewTextBlockObject("plain_text", "タイプを選択してください", false, false),
+			slack.NewTextBlockObject("plain_text", "タイプ", false, false),
+			slack.NewOptionsSelectBlockElement(slack.OptTypeStatic, slack.NewTextBlockObject("plain_text", "タイプを選択", false, false), "type_select", typeOptions...),
+		))
+	}
+
+	// Tool選択を追加（Toolが存在する場合）
+	if len(toolOptions) > 0 {
+		blocks = append(blocks, &slack.InputBlock{
+			Type:     slack.MBTInput,
+			BlockID:  "tool_block",
+			Label:    slack.NewTextBlockObject("plain_text", "使用するツールを選択してください（複数選択可）", false, false),
+			Element:  slack.NewCheckboxGroupsBlockElement("tool_checkbox", toolOptions...),
+			Optional: true,
+		})
+	}
+
 	modalRequest := slack.ModalViewRequest{
-		Type:       slack.ViewType("modal"),
-		Title:      slack.NewTextBlockObject("plain_text", "登録フォーム", false, false),
-		Submit:     slack.NewTextBlockObject("plain_text", "送信", false, false),
+		Type:            slack.ViewType("modal"),
+		Title:           slack.NewTextBlockObject("plain_text", "登録フォーム", false, false),
+		Submit:          slack.NewTextBlockObject("plain_text", "送信", false, false),
 		PrivateMetadata: s.ResponseURL,
-		Close:      slack.NewTextBlockObject("plain_text", "閉じる", false, false),
-		CallbackID: "register_event",
+		Close:           slack.NewTextBlockObject("plain_text", "閉じる", false, false),
+		CallbackID:      "register_event",
 		Blocks: slack.Blocks{
-			BlockSet: []slack.Block{
-				// 名前
-				slack.NewInputBlock(
-					"name_block",
-					slack.NewTextBlockObject("plain_text", "話題を入力してください", false, false),
-					slack.NewTextBlockObject("plain_text", "名前", false, false),
-					slack.NewPlainTextInputBlockElement(slack.NewTextBlockObject("plain_text", "例：スマブラ、Android", false, false), "name_input"),
-				),
-				// 人数
-				slack.NewInputBlock(
-					"number_block",
-					slack.NewTextBlockObject("plain_text", "最低限必要な人数を入力してください", false, false),
-					slack.NewTextBlockObject("plain_text", "人数", false, false),
-					slack.NewPlainTextInputBlockElement(slack.NewTextBlockObject("plain_text", "例：2", false, false), "number_input"),
-				),
-			},
+			BlockSet: blocks,
 		},
 	}
 	_, err = api.OpenView(s.TriggerID, modalRequest)
