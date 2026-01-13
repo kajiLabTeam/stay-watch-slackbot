@@ -7,43 +7,19 @@ import (
 	"github.com/kajiLabTeam/stay-watch-slackbot/service"
 )
 
-// RegisterTypeRequest はType登録のリクエストボディ
-type RegisterTypeRequest struct {
-	Name string `json:"name" binding:"required"`
+// BatchRegisterTypeRequest はType一括登録のリクエストボディ
+type RegisterTypesRequest struct {
+	Names []string `json:"names" binding:"required,min=1"`
 }
 
-// RegisterToolRequest はTool登録のリクエストボディ
-type RegisterToolRequest struct {
-	Name string `json:"name" binding:"required"`
+// BatchRegisterToolRequest はTool一括登録のリクエストボディ
+type RegisterToolsRequest struct {
+	Names []string `json:"names" binding:"required,min=1"`
 }
 
-// RegisterStatusRequest はStatus登録のリクエストボディ
-type RegisterStatusRequest struct {
-	Name string `json:"name" binding:"required"`
-}
-
-// PostRegisterType はTypeを登録するAPIハンドラー
-func PostRegisterType(c *gin.Context) {
-	var req RegisterTypeRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		respondError(c, http.StatusBadRequest, "invalid request body")
-		return
-	}
-
-	typeObj, err := service.RegisterType(req.Name)
-	if err != nil {
-		if err.Error() == "type already exists" {
-			respondError(c, http.StatusConflict, "type already exists")
-			return
-		}
-		respondError(c, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	c.JSON(http.StatusCreated, gin.H{
-		"message": "type registered successfully",
-		"data":    typeObj,
-	})
+// BatchRegisterStatusRequest はStatus一括登録のリクエストボディ
+type RegisterStatusesRequest struct {
+	Names []string `json:"names" binding:"required,min=1"`
 }
 
 // GetTypes はType一覧を取得するAPIハンドラー
@@ -56,30 +32,6 @@ func GetTypes(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"data": types,
-	})
-}
-
-// PostRegisterTool はToolを登録するAPIハンドラー
-func PostRegisterTool(c *gin.Context) {
-	var req RegisterToolRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		respondError(c, http.StatusBadRequest, "invalid request body")
-		return
-	}
-
-	tool, err := service.RegisterTool(req.Name)
-	if err != nil {
-		if err.Error() == "tool already exists" {
-			respondError(c, http.StatusConflict, "tool already exists")
-			return
-		}
-		respondError(c, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	c.JSON(http.StatusCreated, gin.H{
-		"message": "tool registered successfully",
-		"data":    tool,
 	})
 }
 
@@ -96,30 +48,6 @@ func GetTools(c *gin.Context) {
 	})
 }
 
-// PostRegisterStatus はStatusを登録するAPIハンドラー
-func PostRegisterStatus(c *gin.Context) {
-	var req RegisterStatusRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		respondError(c, http.StatusBadRequest, "invalid request body")
-		return
-	}
-
-	status, err := service.RegisterStatus(req.Name)
-	if err != nil {
-		if err.Error() == "status already exists" {
-			respondError(c, http.StatusConflict, "status already exists")
-			return
-		}
-		respondError(c, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	c.JSON(http.StatusCreated, gin.H{
-		"message": "status registered successfully",
-		"data":    status,
-	})
-}
-
 // GetStatuses はStatus一覧を取得するAPIハンドラー
 func GetStatuses(c *gin.Context) {
 	statuses, err := service.GetStatuses()
@@ -130,5 +58,68 @@ func GetStatuses(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"data": statuses,
+	})
+}
+
+// PostRegisterTypes はTypeを一括登録するAPIハンドラー
+func PostRegisterTypes(c *gin.Context) {
+	var req RegisterTypesRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondError(c, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	types, errors, err := service.BatchRegisterTypes(req.Names)
+	if err != nil {
+		respondError(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"message": "batch registration completed",
+		"data":    types,
+		"errors":  errors,
+	})
+}
+
+// Post	RegisterTools はToolを一括登録するAPIハンドラー
+func PostRegisterTools(c *gin.Context) {
+	var req RegisterToolsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondError(c, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	tools, errors, err := service.BatchRegisterTools(req.Names)
+	if err != nil {
+		respondError(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"message": "batch registration completed",
+		"data":    tools,
+		"errors":  errors,
+	})
+}
+
+// PostRegisterStatuses はStatusを一括登録するAPIハンドラー
+func PostRegisterStatuses(c *gin.Context) {
+	var req RegisterStatusesRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondError(c, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	statuses, errors, err := service.BatchRegisterStatuses(req.Names)
+	if err != nil {
+		respondError(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"message": "batch registration completed",
+		"data":    statuses,
+		"errors":  errors,
 	})
 }

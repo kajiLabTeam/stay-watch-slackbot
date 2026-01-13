@@ -30,3 +30,20 @@ func GetTypes() ([]model.Type, error) {
 	}
 	return types, nil
 }
+
+// BatchRegisterTypes は複数のTypeを一括登録する
+func BatchRegisterTypes(names []string) ([]model.Type, map[string]string, error) {
+	var types []model.Type
+	errors := make(map[string]string)
+
+	for _, name := range names {
+		typeObj, err := RegisterType(name)
+		if err != nil {
+			errors[name] = err.Error()
+			continue
+		}
+		types = append(types, typeObj)
+	}
+
+	return types, errors, nil
+}

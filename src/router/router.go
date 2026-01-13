@@ -52,11 +52,11 @@ func Router() {
 	r.GET("/notification", controller.SendDM)
 
 	// REST API endpoints
-	r.POST("/api/types", controller.PostRegisterType)
+	r.POST("/api/types", controller.PostRegisterTypes)
 	r.GET("/api/types", controller.GetTypes)
-	r.POST("/api/tools", controller.PostRegisterTool)
+	r.POST("/api/tools", controller.PostRegisterTools)
 	r.GET("/api/tools", controller.GetTools)
-	r.POST("/api/statuses", controller.PostRegisterStatus)
+	r.POST("/api/statuses", controller.PostRegisterStatuses)
 	r.GET("/api/statuses", controller.GetStatuses)
 
 	r.Run(":8085")
