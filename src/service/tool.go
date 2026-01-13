@@ -30,3 +30,20 @@ func GetTools() ([]model.Tool, error) {
 	}
 	return tools, nil
 }
+
+// BatchRegisterTools は複数のToolを一括登録する
+func BatchRegisterTools(names []string) ([]model.Tool, map[string]string, error) {
+	var tools []model.Tool
+	errors := make(map[string]string)
+
+	for _, name := range names {
+		tool, err := RegisterTool(name)
+		if err != nil {
+			errors[name] = err.Error()
+			continue
+		}
+		tools = append(tools, tool)
+	}
+
+	return tools, errors, nil
+}

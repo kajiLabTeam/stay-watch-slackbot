@@ -30,3 +30,20 @@ func GetStatuses() ([]model.Status, error) {
 	}
 	return statuses, nil
 }
+
+// BatchRegisterStatuses は複数のStatusを一括登録する
+func BatchRegisterStatuses(names []string) ([]model.Status, map[string]string, error) {
+	var statuses []model.Status
+	errors := make(map[string]string)
+
+	for _, name := range names {
+		status, err := RegisterStatus(name)
+		if err != nil {
+			errors[name] = err.Error()
+			continue
+		}
+		statuses = append(statuses, status)
+	}
+
+	return statuses, errors, nil
+}
