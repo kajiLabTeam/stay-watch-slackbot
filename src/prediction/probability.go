@@ -2,6 +2,7 @@ package prediction
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/kajiLabTeam/stay-watch-slackbot/lib"
 	"gonum.org/v1/gonum/stat"
@@ -83,6 +84,38 @@ func GetProbability(data []string, time string, weeks int) (float64, error) {
 	}
 
 	return totalProbability, nil
+}
+
+// GetProbabilityByUniqueDate 来訪確率を計算する（日付重複を排除）
+// 同じ日に複数のログがある場合、最初の時刻のみを使用する
+// data: "2006-01-02 15:04"形式の日付時刻文字列スライス
+// time: "HH:MM"形式の時刻文字列
+// weeks: 週数
+func GetProbabilityByUniqueDate(data []string, time string, weeks int) (float64, error) {
+	// 日付ごとに最初の時刻のみを保持
+	dateToTime := make(map[string]string)
+	for _, d := range data {
+		parts := strings.SplitN(d, " ", 2)
+		if len(parts) != 2 {
+			return 0, fmt.Errorf("invalid datetime format: %s", d)
+		}
+		date := parts[0]
+		timeStr := parts[1]
+
+		// 同じ日付がまだ登録されていない場合のみ追加
+		if _, exists := dateToTime[date]; !exists {
+			dateToTime[date] = timeStr
+		}
+	}
+
+	// 重複排除後の時刻リストを作成
+	uniqueTimes := make([]string, 0, len(dateToTime))
+	for _, t := range dateToTime {
+		uniqueTimes = append(uniqueTimes, t)
+	}
+
+	// 既存のGetProbability関数を使用して確率を計算
+	return GetProbability(uniqueTimes, time, weeks)
 }
 
 // GetMostLikelyTime 活動の最も可能性の高い時間を見つける
