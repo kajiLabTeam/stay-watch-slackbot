@@ -32,13 +32,14 @@ func SendDM(c *gin.Context) {
 		tomorrow := time.Now().In(loc).AddDate(0, 0, 1)
 		targetWeekday = tomorrow.Weekday()
 	} else {
-		// パラメータから曜日を解析（int型として）
+		// パラメータから曜日を解析（MySQL WEEKDAY形式: 月=0, 日=6）
 		weekdayInt, err := strconv.Atoi(weekdayParam)
 		if err != nil || weekdayInt < 0 || weekdayInt > 6 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid weekday parameter. Use integer 0-6 (0=Sunday, 1=Monday, ..., 6=Saturday)"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid weekday parameter. Use integer 0-6 (0=Monday, ..., 6=Sunday)"})
 			return
 		}
-		targetWeekday = time.Weekday(weekdayInt)
+		// MySQL WEEKDAY形式(月=0)からGoのtime.Weekday形式(日=0)に変換
+		targetWeekday = time.Weekday((weekdayInt + 1) % 7)
 	}
 
 	users, userMessages := service.NotifyByEvent(targetWeekday)
