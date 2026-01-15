@@ -32,12 +32,13 @@ FROM alpine:latest AS production
 
 RUN apk --no-cache add ca-certificates tzdata
 
-WORKDIR /app
-
-# ビルドステージからバイナリをコピー
-COPY --from=builder /app/main .
+# 開発環境と同じディレクトリ構成にする
+WORKDIR /stay_watch-slackbot/src
 
 # ログディレクトリを作成
 RUN mkdir -p /stay_watch-slackbot/log
+
+# ビルドステージからバイナリをコピー
+COPY --from=builder /app/main .
 
 CMD ["./main"]
