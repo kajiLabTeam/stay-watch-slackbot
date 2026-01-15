@@ -14,7 +14,7 @@ import (
 
 func SendDM(c *gin.Context) {
 	// ログファイルを開く
-	logFile, err := os.OpenFile("log/dm_send.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	logFile, err := os.OpenFile("../log/dm_send.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, "failed to open log file")
 		return
