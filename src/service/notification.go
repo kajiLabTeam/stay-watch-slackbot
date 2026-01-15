@@ -38,7 +38,7 @@ func NotifyByEvent(targetWeekday time.Weekday) ([]model.User, map[int]map[int][]
 	// Step 2: 各イベントに対して処理
 	for _, event := range events {
 		// Step 2a: 活動確率を取得（閾値チェック）
-		probability, err := getActivityProbability(event.ID, targetWeekday, "23:59")
+		probability, err := GetActivityProbability(event.ID, targetWeekday, "23:59")
 		if err != nil || probability < 0.30 {
 			continue // 確率が閾値未満の場合スキップ
 		}

@@ -2,6 +2,8 @@ package controller
 
 import (
 	"net/http"
+	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/kajiLabTeam/stay-watch-slackbot/service"
@@ -121,5 +123,48 @@ func PostRegisterStatuses(c *gin.Context) {
 		"message": "batch registration completed",
 		"data":    statuses,
 		"errors":  errors,
+	})
+}
+
+// GetEventProbability は指定したイベントと曜日の発生確率を取得するAPIハンドラー
+// GET /api/events/:id/probability?weekday=0&time=12:00
+func GetEventProbability(c *gin.Context) {
+	// パスパラメータからイベントIDを取得
+	eventIDStr := c.Param("id")
+	eventID, err := strconv.ParseUint(eventIDStr, 10, 32)
+	if err != nil {
+		respondError(c, http.StatusBadRequest, "invalid event id")
+		return
+	}
+
+	// クエリパラメータから曜日を取得（必須）
+	weekdayStr := c.Query("weekday")
+	if weekdayStr == "" {
+		respondError(c, http.StatusBadRequest, "weekday parameter is required")
+		return
+	}
+	weekdayInt, err := strconv.Atoi(weekdayStr)
+	if err != nil || weekdayInt < 0 || weekdayInt > 6 {
+		respondError(c, http.StatusBadRequest, "weekday must be 0-6 (Monday=0, Sunday=6)")
+		return
+	}
+	// MySQL WEEKDAY形式(月=0)からGoのtime.Weekday形式(日=0)に変換
+	weekday := time.Weekday((weekdayInt + 1) % 7)
+
+	// クエリパラメータから時刻を取得（オプション、デフォルトは現在時刻）
+	targetTime := c.DefaultQuery("time", time.Now().Format("15:04"))
+
+	// 確率を取得
+	probability, err := service.GetActivityProbability(uint(eventID), weekday, targetTime)
+	if err != nil {
+		respondError(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"event_id":    eventID,
+		"weekday":     weekdayInt,
+		"time":        targetTime,
+		"probability": probability,
 	})
 }
