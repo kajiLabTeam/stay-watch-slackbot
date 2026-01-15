@@ -14,8 +14,8 @@ type ActivityTimeRange struct {
 	End   string // "HH:MM"
 }
 
-// getActivityProbability イベントごとの活動確率を取得する
-func getActivityProbability(eventID uint, dayOfWeek time.Weekday, targetTime string) (float64, error) {
+// GetActivityProbability イベントごとの活動確率を取得する
+func GetActivityProbability(eventID uint, dayOfWeek time.Weekday, targetTime string) (float64, error) {
 	// 1. ログを取得
 	logs, weeks, err := model.ReadLogsByEventIDAndDayOfWeek(eventID, dayOfWeek)
 	if err != nil || len(logs) == 0 {
