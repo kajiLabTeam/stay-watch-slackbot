@@ -22,21 +22,21 @@ func GetActivityProbability(eventID uint, dayOfWeek time.Weekday, targetTime str
 		return 0.0, nil // データ不足時は 0.0 を返す
 	}
 
-	// 2. Status が "start" のログをフィルタリング
-	var timeStrings []string
+	// 2. Status が "start" のログをフィルタリング（日付付き）
+	var datetimeStrings []string
 	for _, log := range logs {
 		if log.Status.Name == "start" {
-			timeStr := log.CreatedAt.Format("15:04")
-			timeStrings = append(timeStrings, timeStr)
+			datetimeStr := log.CreatedAt.Format("2006-01-02 15:04")
+			datetimeStrings = append(datetimeStrings, datetimeStr)
 		}
 	}
 
-	if len(timeStrings) == 0 {
+	if len(datetimeStrings) == 0 {
 		return 0.0, nil
 	}
 
-	// 3. prediction パッケージで確率計算
-	probability, err := prediction.GetProbability(timeStrings, targetTime, weeks)
+	// 3. prediction パッケージで確率計算（日付重複を排除）
+	probability, err := prediction.GetProbabilityByUniqueDate(datetimeStrings, targetTime, weeks)
 	if err != nil {
 		return 0.0, err
 	}
