@@ -26,8 +26,7 @@ func GetProbability(userID int) (Probability, string, error) {
 	}
 
 	var probability Probability
-	loc, _ := time.LoadLocation("Asia/Tokyo")
-	now := time.Now().In(loc)
+	now := time.Now().UTC()
 	timeStr := now.Format("15:04")
 	w := now.Weekday()
 	// 月曜を0とする変換
