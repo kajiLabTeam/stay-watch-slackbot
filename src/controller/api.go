@@ -151,11 +151,20 @@ func GetEventProbability(c *gin.Context) {
 	// MySQL WEEKDAY形式(月=0)からGoのtime.Weekday形式(日=0)に変換
 	weekday := time.Weekday((weekdayInt + 1) % 7)
 
-	// クエリパラメータから時刻を取得（オプション、デフォルトは現在時刻）
-	targetTime := c.DefaultQuery("time", time.Now().Format("15:04"))
+	// クエリパラメータから時刻を取得（オプション、デフォルトは現在時刻JST）
+	jst := time.FixedZone("JST", 9*60*60)
+	inputTimeJST := c.DefaultQuery("time", time.Now().In(jst).Format("15:04"))
+
+	// JST入力をUTCに変換
+	parsedJST, err := time.ParseInLocation("15:04", inputTimeJST, jst)
+	if err != nil {
+		respondError(c, http.StatusBadRequest, "invalid time format (expected HH:MM)")
+		return
+	}
+	targetTimeUTC := parsedJST.UTC().Format("15:04")
 
 	// 確率を取得
-	probability, err := service.GetActivityProbability(uint(eventID), weekday, targetTime)
+	probability, err := service.GetActivityProbability(uint(eventID), weekday, targetTimeUTC)
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, err.Error())
 		return
@@ -164,7 +173,7 @@ func GetEventProbability(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"event_id":    eventID,
 		"weekday":     weekdayInt,
-		"time":        targetTime,
+		"time":        inputTimeJST,
 		"probability": probability,
 	})
 }
