@@ -14,15 +14,34 @@ type ActivityTimeRange struct {
 	End   string // "HH:MM"
 }
 
+// calculateWeeks 最初のログから今日までの週数を計算する
+func calculateWeeks(logs []model.Log) int {
+	if len(logs) == 0 {
+		return 0
+	}
+	oldestLog := logs[0]
+	for _, log := range logs {
+		if log.CreatedAt.Before(oldestLog.CreatedAt) {
+			oldestLog = log
+		}
+	}
+	now := time.Now()
+	days := int(now.Sub(oldestLog.CreatedAt).Hours() / 24)
+	return (days / 7) + 1
+}
+
 // GetActivityProbability イベントごとの活動確率を取得する
 func GetActivityProbability(eventID uint, dayOfWeek time.Weekday, targetTime string) (float64, error) {
 	// 1. ログを取得
-	logs, weeks, err := model.ReadLogsByEventIDAndDayOfWeek(eventID, dayOfWeek)
+	logs, err := model.ReadLogsByEventIDAndDayOfWeek(eventID, dayOfWeek)
 	if err != nil || len(logs) == 0 {
 		return 0.0, nil // データ不足時は 0.0 を返す
 	}
 
-	// 2. Status が "start" のログをフィルタリング（日付付き）
+	// 2. 週数を計算
+	weeks := calculateWeeks(logs)
+
+	// 3. Status が "start" のログをフィルタリング（日付付き）
 	var datetimeStrings []string
 	for _, log := range logs {
 		if log.Status.Name == "start" {
@@ -46,10 +65,12 @@ func GetActivityProbability(eventID uint, dayOfWeek time.Weekday, targetTime str
 
 // getActivityTimeRange イベントの活動予測時刻範囲を取得する
 func getActivityTimeRange(eventID uint, dayOfWeek time.Weekday) (ActivityTimeRange, error) {
-	logs, weeks, err := model.ReadLogsByEventIDAndDayOfWeek(eventID, dayOfWeek)
+	logs, err := model.ReadLogsByEventIDAndDayOfWeek(eventID, dayOfWeek)
 	if err != nil || len(logs) == 0 {
 		return ActivityTimeRange{Start: "00:00", End: "23:59"}, nil
 	}
+
+	weeks := calculateWeeks(logs)
 
 	// start と end のログを分離
 	var startTimes []string

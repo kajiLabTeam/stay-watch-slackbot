@@ -1,7 +1,6 @@
 package model
 
 import (
-	"fmt"
 	"time"
 )
 
@@ -49,7 +48,7 @@ func ReadLogsByEventIDAndDateRange(eventID uint, startDate, endDate time.Time) (
 }
 
 // ReadLogsByEventIDAndDayOfWeek retrieves logs by event ID and day of week
-func ReadLogsByEventIDAndDayOfWeek(eventID uint, dayOfWeek time.Weekday) ([]Log, int, error) {
+func ReadLogsByEventIDAndDayOfWeek(eventID uint, dayOfWeek time.Weekday) ([]Log, error) {
 	var logs []Log
 
 	// dayOfWeekをMysqlのWEEKDAY関数に合わせて変換 (0=月曜日, ..., 6=日曜日)
@@ -60,20 +59,10 @@ func ReadLogsByEventIDAndDayOfWeek(eventID uint, dayOfWeek time.Weekday) ([]Log,
 		Preload("Event").
 		Preload("Status").
 		Find(&logs).Error; err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 
-	// 週数を計算
-	var weeks int
-	dateMap := make(map[string]bool)
-	for _, log := range logs {
-		year, week := log.CreatedAt.ISOWeek()
-		key := fmt.Sprintf("%d-%d", year, week)
-		dateMap[key] = true
-	}
-	weeks = len(dateMap)
-
-	return logs, weeks, nil
+	return logs, nil
 }
 
 // ReadLogsByEventIDAndDayOfWeekWithWeeks retrieves logs by event ID, day of week, and number of weeks
