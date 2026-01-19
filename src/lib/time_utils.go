@@ -33,3 +33,12 @@ func MinutesToTime(minutes int) string {
 	mins := minutes % 60
 	return fmt.Sprintf("%02d:%02d", hours, mins)
 }
+
+// ExtractTimeFromDatetime "YYYY-MM-DD HH:MM"形式の日時文字列から時刻部分を抽出する
+func ExtractTimeFromDatetime(datetimeStr string) (string, error) {
+	parts := strings.SplitN(datetimeStr, " ", 2)
+	if len(parts) != 2 {
+		return "", fmt.Errorf("invalid datetime format: %s", datetimeStr)
+	}
+	return parts[1], nil
+}
