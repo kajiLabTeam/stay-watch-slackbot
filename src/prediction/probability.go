@@ -57,8 +57,8 @@ func GetProbability(data []string, time string, weeks int) (float64, error) {
 			continue
 		}
 
-		// 2-1. クラスタ中心（平均）
-		loc := c.Center
+		// 2-1. クラスタ平均
+		loc := stat.Mean(c.Data, nil)
 
 		// 2-2. クラスタの標準偏差を計算
 		scale := stat.StdDev(c.Data, nil)
@@ -112,6 +112,15 @@ func GetProbabilityByUniqueDate(data []string, time string, weeks int) (float64,
 	uniqueTimes := make([]string, 0, len(dateToTime))
 	for _, t := range dateToTime {
 		uniqueTimes = append(uniqueTimes, t)
+	}
+
+	// 日付ありのデータで確率から日付なしのデータに変換して計算
+	for i, datetimeStr := range uniqueTimes {
+		timeStr, err := lib.ExtractTimeFromDatetime(datetimeStr)
+		if err != nil {
+			return 0, err
+		}
+		uniqueTimes[i] = timeStr
 	}
 
 	// 既存のGetProbability関数を使用して確率を計算
