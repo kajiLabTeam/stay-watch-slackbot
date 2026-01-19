@@ -114,15 +114,6 @@ func GetProbabilityByUniqueDate(data []string, time string, weeks int) (float64,
 		uniqueTimes = append(uniqueTimes, t)
 	}
 
-	// 日付ありのデータで確率から日付なしのデータに変換して計算
-	for i, datetimeStr := range uniqueTimes {
-		timeStr, err := lib.ExtractTimeFromDatetime(datetimeStr)
-		if err != nil {
-			return 0, err
-		}
-		uniqueTimes[i] = timeStr
-	}
-
 	// 既存のGetProbability関数を使用して確率を計算
 	return GetProbability(uniqueTimes, time, weeks)
 }
