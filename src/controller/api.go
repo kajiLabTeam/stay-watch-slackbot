@@ -9,19 +9,31 @@ import (
 	"github.com/kajiLabTeam/stay-watch-slackbot/service"
 )
 
-// BatchRegisterTypeRequest はType一括登録のリクエストボディ
+// RegisterTypesRequest はType一括登録のリクエストボディ
 type RegisterTypesRequest struct {
 	Names []string `json:"names" binding:"required,min=1"`
 }
 
-// BatchRegisterToolRequest はTool一括登録のリクエストボディ
+// RegisterToolsRequest はTool一括登録のリクエストボディ
 type RegisterToolsRequest struct {
 	Names []string `json:"names" binding:"required,min=1"`
 }
 
-// BatchRegisterStatusRequest はStatus一括登録のリクエストボディ
+// RegisterStatusesRequest はStatus一括登録のリクエストボディ
 type RegisterStatusesRequest struct {
 	Names []string `json:"names" binding:"required,min=1"`
+}
+
+// LogEntry はログ登録リクエストの1エントリを表す
+type LogEntry struct {
+	EventID   uint   `json:"event_id" binding:"required"`
+	StatusID  uint   `json:"status_id" binding:"required"`
+	CreatedAt string `json:"created_at" binding:"required"`
+}
+
+// RegisterLogsRequest はログ一括登録のリクエストボディ
+type RegisterLogsRequest struct {
+	Logs []LogEntry `json:"logs" binding:"required,min=1"`
 }
 
 // GetTypes はType一覧を取得するAPIハンドラー
@@ -84,7 +96,7 @@ func PostRegisterTypes(c *gin.Context) {
 	})
 }
 
-// Post	RegisterTools はToolを一括登録するAPIハンドラー
+// PostRegisterTools はToolを一括登録するAPIハンドラー
 func PostRegisterTools(c *gin.Context) {
 	var req RegisterToolsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -175,5 +187,36 @@ func GetEventProbability(c *gin.Context) {
 		"weekday":     weekdayInt,
 		"time":        inputTimeJST,
 		"probability": probability,
+	})
+}
+
+// PostRegisterLogs はログを一括登録するAPIハンドラー
+func PostRegisterLogs(c *gin.Context) {
+	var req RegisterLogsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondError(c, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	// リクエストをサービス層の入力形式に変換
+	inputs := make([]service.LogEntryInput, len(req.Logs))
+	for i, entry := range req.Logs {
+		inputs[i] = service.LogEntryInput{
+			EventID:   entry.EventID,
+			StatusID:  entry.StatusID,
+			CreatedAt: entry.CreatedAt,
+		}
+	}
+
+	logs, errors, err := service.BatchRegisterLogs(inputs)
+	if err != nil {
+		respondError(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"message": "batch registration completed",
+		"data":    logs,
+		"errors":  errors,
 	})
 }
