@@ -46,7 +46,7 @@ func GetProbability(data []string, time string, weeks int) (float64, error) {
 	clusters := Clustering(dataMinutes)
 
 	// 2. 各クラスタの確率を計算
-	var totalProbability float64
+	totalProbability := 0.0
 
 	for _, c := range clusters {
 		// クラスタ内のデータポイントが1つの場合

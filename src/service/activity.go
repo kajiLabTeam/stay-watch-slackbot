@@ -25,7 +25,7 @@ func calculateWeeks(logs []model.Log) int {
 			oldestLog = log
 		}
 	}
-	now := time.Now()
+	now := time.Now().UTC()
 	days := int(now.Sub(oldestLog.CreatedAt).Hours() / 24)
 	return (days / 7) + 1
 }
@@ -42,6 +42,7 @@ func GetActivityProbability(eventID uint, dayOfWeek time.Weekday, targetTime str
 	weeks := calculateWeeks(logs)
 
 	// 3. Status が "start" のログをフィルタリング（日付付き）
+	// DBはUTCなのでそのまま使用（targetTimeもUTC）
 	var datetimeStrings []string
 	for _, log := range logs {
 		if log.Status.Name == "start" {
@@ -73,10 +74,11 @@ func getActivityTimeRange(eventID uint, dayOfWeek time.Weekday) (ActivityTimeRan
 	weeks := calculateWeeks(logs)
 
 	// start と end のログを分離
+	// Slack表示用にJSTに変換
 	var startTimes []string
 	var endTimes []string
 	for _, log := range logs {
-		timeStr := log.CreatedAt.Format("15:04")
+		timeStr := lib.FormatTimeJST(log.CreatedAt)
 		switch log.Status.Name {
 		case "start":
 			startTimes = append(startTimes, timeStr)

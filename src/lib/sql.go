@@ -25,7 +25,7 @@ func SQLConnect() (database *gorm.DB) {
 	protocol := getEnv("MYSQL_PROTOCOL", "")
 	dbname := getEnv("MYSQL_DBNAME", "")
 
-	dsn := fmt.Sprintf("%s:%s@%s/%s?charset=utf8&parseTime=true&loc=Asia%%2FTokyo",
+	dsn := fmt.Sprintf("%s:%s@%s/%s?charset=utf8&parseTime=true&loc=UTC",
 		user, password, protocol, dbname)
 	dialector := mysql.Open(dsn)
 	// log.Default().Println(dsn)

@@ -27,9 +27,9 @@ func SendDM(c *gin.Context) {
 
 	var targetWeekday time.Weekday
 	if weekdayParam == "" {
-		// パラメータが指定されていない場合は翌日
-		loc, _ := time.LoadLocation("Asia/Tokyo")
-		tomorrow := time.Now().In(loc).AddDate(0, 0, 1)
+		// パラメータが指定されていない場合は翌日（JSTベース）
+		jst := time.FixedZone("JST", 9*60*60)
+		tomorrow := time.Now().In(jst).AddDate(0, 0, 1)
 		targetWeekday = tomorrow.Weekday()
 	} else {
 		// パラメータから曜日を解析（MySQL WEEKDAY形式: 月=0, 日=6）
@@ -91,8 +91,8 @@ func SendDM(c *gin.Context) {
 			respondError(c, http.StatusInternalServerError, "failed to send message")
 		} else {
 			// 送信成功時にログを記録
-			loc, _ := time.LoadLocation("Asia/Tokyo")
-			now := time.Now().In(loc)
+			jst := time.FixedZone("JST", 9*60*60)
+			now := time.Now().UTC().In(jst)
 			logger.Printf("[%s] 送信先: %s (SlackID: %s)\n推奨活動内容:\n%s\n---\n",
 				now.Format("2006-01-02 15:04:05"),
 				user.Name,

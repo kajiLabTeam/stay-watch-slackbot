@@ -5,7 +5,40 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 )
+
+// JST は日本標準時（表示用、固定）
+var JST = time.FixedZone("JST", 9*60*60)
+
+// StayWatchTimezone はStayWatch APIが使用するタイムゾーン
+// TODO: StayWatchがUTCに移行したら time.UTC に変更する
+var StayWatchTimezone = time.FixedZone("JST", 9*60*60)
+
+// ToJST はUTC時刻をJSTに変換する（Slack表示用）
+func ToJST(t time.Time) time.Time {
+	return t.In(JST)
+}
+
+// FormatTimeJST はUTC時刻をJSTの"HH:MM"形式に変換する（Slack表示用）
+func FormatTimeJST(t time.Time) string {
+	return ToJST(t).Format("15:04")
+}
+
+// ToStayWatchTime はUTC時刻をStayWatchのタイムゾーンに変換する
+func ToStayWatchTime(t time.Time) time.Time {
+	return t.In(StayWatchTimezone)
+}
+
+// FormatForStayWatch はUTC時刻をStayWatch用の"HH:MM"形式に変換する
+func FormatForStayWatch(t time.Time) string {
+	return ToStayWatchTime(t).Format("15:04")
+}
+
+// FormatDateTimeForStayWatch はUTC時刻をStayWatch用の"2006-01-02 15:04"形式に変換する
+func FormatDateTimeForStayWatch(t time.Time) string {
+	return ToStayWatchTime(t).Format("2006-01-02 15:04")
+}
 
 // TimeToMinutes "HH:MM"形式の時刻を分に変換する
 func TimeToMinutes(timeStr string) (int, error) {
