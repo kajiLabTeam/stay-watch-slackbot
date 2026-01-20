@@ -2,7 +2,6 @@ package service
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/kajiLabTeam/stay-watch-slackbot/lib"
 	"github.com/kajiLabTeam/stay-watch-slackbot/model"
@@ -12,7 +11,7 @@ import (
 type LogEntryInput struct {
 	EventID   uint
 	StatusID  uint
-	CreatedAt string // JST形式 "2006-01-02 15:04:05"
+	CreatedAt string // RFC3339形式 (JSTまたはUTC、例: "2006-01-02T15:04:05+09:00" or "2006-01-02T15:04:05Z")
 }
 
 // RegisterLog は単一のログを登録する（JST→UTC変換、外部キー検証）
@@ -31,12 +30,12 @@ func RegisterLog(input LogEntryInput) (model.Log, error) {
 		return model.Log{}, fmt.Errorf("status_id %d not found", input.StatusID)
 	}
 
-	// JST時刻をパースしてUTCに変換
-	createdAtJST, err := time.ParseInLocation("2006-01-02 15:04:05", input.CreatedAt, lib.JST)
+	// 時刻をパースしてUTCに変換（タイムゾーン検証付き: JST or UTC のみ許可）
+	parseResult, err := lib.ParseWithTimezoneDetection(input.CreatedAt)
 	if err != nil {
-		return model.Log{}, fmt.Errorf("invalid created_at format: %s", input.CreatedAt)
+		return model.Log{}, fmt.Errorf("invalid created_at: %v", err)
 	}
-	createdAtUTC := createdAtJST.UTC()
+	createdAtUTC := parseResult.Time
 
 	// ログを作成
 	log := model.Log{

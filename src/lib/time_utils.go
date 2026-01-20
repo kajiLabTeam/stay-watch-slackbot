@@ -66,3 +66,52 @@ func MinutesToTime(minutes int) string {
 	mins := minutes % 60
 	return fmt.Sprintf("%02d:%02d", hours, mins)
 }
+
+// ErrUnsupportedTimezone は対応していないタイムゾーンの場合のエラー
+var ErrUnsupportedTimezone = fmt.Errorf("timezone must be JST (+09:00) or UTC (+00:00/Z)")
+
+// ErrNoTimezone は入力時刻にタイムゾーン情報がない場合のエラー
+var ErrNoTimezone = fmt.Errorf("timezone information is required (use RFC3339 format, e.g., 2006-01-02T15:04:05+09:00)")
+
+// TimezoneType は検出されたタイムゾーンの種類を表す
+type TimezoneType string
+
+const (
+	TimezoneJST TimezoneType = "JST"
+	TimezoneUTC TimezoneType = "UTC"
+)
+
+// ParseResult はパース結果を表す
+type ParseResult struct {
+	Time     time.Time    // UTC変換後の時刻
+	Timezone TimezoneType // 検出されたタイムゾーン
+}
+
+// ParseWithTimezoneDetection はRFC3339形式の時刻文字列をパースし、タイムゾーンを判別してUTCに変換する
+// 入力形式: "2006-01-02T15:04:05+09:00" (JST) または "2006-01-02T15:04:05Z" / "2006-01-02T15:04:05+00:00" (UTC)
+// JSTまたはUTC以外のタイムゾーン、またはタイムゾーン情報がない場合はエラーを返す
+func ParseWithTimezoneDetection(timeStr string) (ParseResult, error) {
+	// RFC3339形式でパース
+	t, err := time.Parse(time.RFC3339, timeStr)
+	if err != nil {
+		return ParseResult{}, ErrNoTimezone
+	}
+
+	// タイムゾーンオフセットを確認
+	_, offset := t.Zone()
+
+	switch offset {
+	case 9 * 60 * 60: // JST (+09:00)
+		return ParseResult{
+			Time:     t.UTC(),
+			Timezone: TimezoneJST,
+		}, nil
+	case 0: // UTC (+00:00 or Z)
+		return ParseResult{
+			Time:     t.UTC(),
+			Timezone: TimezoneUTC,
+		}, nil
+	default:
+		return ParseResult{}, ErrUnsupportedTimezone
+	}
+}
