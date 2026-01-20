@@ -59,6 +59,7 @@ func Router() {
 	r.POST("/api/statuses", controller.PostRegisterStatuses)
 	r.GET("/api/statuses", controller.GetStatuses)
 	r.GET("/api/events/:id/probability", controller.GetEventProbability)
+	r.POST("/api/logs", controller.PostRegisterLogs)
 
 	r.Run(":8085")
 }
