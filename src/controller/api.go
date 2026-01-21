@@ -28,7 +28,7 @@ type RegisterStatusesRequest struct {
 type LogEntry struct {
 	EventID   uint   `json:"event_id" binding:"required"`
 	StatusID  uint   `json:"status_id" binding:"required"`
-	CreatedAt string `json:"created_at" binding:"required"`
+	CreatedAt string `json:"created_at" binding:"required"` // RFC3339形式 JST or UTC (例: "2006-01-02T15:04:05+09:00" or "2006-01-02T15:04:05Z")
 }
 
 // RegisterLogsRequest はログ一括登録のリクエストボディ
