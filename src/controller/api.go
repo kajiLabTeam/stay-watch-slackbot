@@ -249,6 +249,44 @@ func GetEventProbability(c *gin.Context) {
 	})
 }
 
+// GetAllActivityProbabilities は全活動の1時間ごとの発生確率を取得するAPIハンドラー
+// @Summary 全活動の時間帯別発生確率を取得
+// @Tags activities
+// @Produce json
+// @Param weekday query int false "曜日 (MySQL WEEKDAY形式: 0=月, 6=日)。省略時は今日の曜日"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/activities/probabilities [get]
+func GetAllActivityProbabilities(c *gin.Context) {
+	jst := time.FixedZone("JST", 9*60*60)
+	var weekday time.Weekday
+
+	weekdayStr := c.Query("weekday")
+	if weekdayStr == "" {
+		// デフォルト: 今日の曜日（JST）
+		weekday = time.Now().In(jst).Weekday()
+	} else {
+		weekdayInt, err := strconv.Atoi(weekdayStr)
+		if err != nil || weekdayInt < 0 || weekdayInt > 6 {
+			respondError(c, http.StatusBadRequest, "weekday must be 0-6 (Monday=0, Sunday=6)")
+			return
+		}
+		// MySQL WEEKDAY形式(月=0)からGoのtime.Weekday形式(日=0)に変換
+		weekday = time.Weekday((weekdayInt + 1) % 7)
+	}
+
+	results, err := service.GetAllActivityProbabilities(weekday)
+	if err != nil {
+		respondError(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data": results,
+	})
+}
+
 // PostRegisterLogs はログを一括登録するAPIハンドラー
 // @Summary ログを一括登録
 // @Tags logs

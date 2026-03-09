@@ -1,12 +1,19 @@
 package service
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/kajiLabTeam/stay-watch-slackbot/lib"
 	"github.com/kajiLabTeam/stay-watch-slackbot/model"
 	"github.com/kajiLabTeam/stay-watch-slackbot/prediction"
 )
+
+// ActivityProbability は活動名と1時間ごとの発生確率を表す
+type ActivityProbability struct {
+	ActivityName  string    `json:"activity_name"`
+	Probabilities []float64 `json:"probabilities"` // length 24, index = hour (0-23 JST), value = 0.0〜1.0
+}
 
 // ActivityTimeRange は活動の予測時間帯を表す
 type ActivityTimeRange struct {
@@ -160,6 +167,75 @@ func filterByCommonActivities(candidates []model.User, receiverActivityEventIDs 
 	}
 
 	return filtered
+}
+
+// GetAllActivityProbabilities は全活動の1時間ごとの発生確率を取得する
+// 各時間帯（JST 0〜23時）の中央（HH:30）を基準に確率を計算する
+func GetAllActivityProbabilities(dayOfWeek time.Weekday) ([]ActivityProbability, error) {
+	// 全イベントを取得
+	event := model.Event{}
+	events, err := event.ReadAll()
+	if err != nil {
+		return nil, fmt.Errorf("failed to read events: %w", err)
+	}
+
+	jst := lib.JST
+	var results []ActivityProbability
+
+	for _, ev := range events {
+		probabilities := make([]float64, 24)
+
+		// 該当曜日のログを取得
+		logs, err := model.ReadLogsByEventIDAndDayOfWeek(ev.ID, dayOfWeek)
+		if err != nil || len(logs) == 0 {
+			// データなしの場合は全て0.0
+			results = append(results, ActivityProbability{
+				ActivityName:  ev.Name,
+				Probabilities: probabilities,
+			})
+			continue
+		}
+
+		weeks := calculateWeeks(logs)
+
+		// "start" ステータスのログのみ抽出（日付付き）
+		var datetimeStrings []string
+		for _, log := range logs {
+			if log.Status.Name == "start" {
+				datetimeStr := log.CreatedAt.Format("2006-01-02 15:04")
+				datetimeStrings = append(datetimeStrings, datetimeStr)
+			}
+		}
+
+		if len(datetimeStrings) == 0 {
+			results = append(results, ActivityProbability{
+				ActivityName:  ev.Name,
+				Probabilities: probabilities,
+			})
+			continue
+		}
+
+		// 各時間帯（JST 0〜23時）の確率を計算
+		for hour := 0; hour < 24; hour++ {
+			// JST HH:30 をUTCに変換
+			jstTime := time.Date(2000, 1, 1, hour, 30, 0, 0, jst)
+			utcTimeStr := jstTime.UTC().Format("15:04")
+
+			prob, err := prediction.GetProbabilityByUniqueDate(datetimeStrings, utcTimeStr, weeks)
+			if err != nil {
+				probabilities[hour] = 0.0
+				continue
+			}
+			probabilities[hour] = prob
+		}
+
+		results = append(results, ActivityProbability{
+			ActivityName:  ev.Name,
+			Probabilities: probabilities,
+		})
+	}
+
+	return results, nil
 }
 
 // getUserActivityTags はユーザーが登録している活動名のリストを取得する
