@@ -110,14 +110,14 @@ func PostSlackInteraction(c *gin.Context) {
 		// DB登録などの処理
 		if _, err := service.RegisterEvent(name, numInt, typeID, toolIDs); err != nil {
 			if err.Error() == "event already exists" {
-				api.PostMessage(
+				_, _, _ = api.PostMessage(
 					"",
 					slack.MsgOptionReplaceOriginal(responseURL),
 					slack.MsgOptionText("登録済みのイベントです", false),
 				)
 				return
 			}
-			api.SendMessage(
+			_, _, _, _ = api.SendMessage(
 				"",
 				slack.MsgOptionReplaceOriginal(interaction.ResponseURL),
 				slack.MsgOptionText("Error: "+err.Error(), false),
@@ -125,7 +125,7 @@ func PostSlackInteraction(c *gin.Context) {
 			return
 		}
 
-		api.PostMessage("", slack.MsgOptionReplaceOriginal(responseURL), slack.MsgOptionText("登録が完了しました。", false))
+		_, _, _ = api.PostMessage("", slack.MsgOptionReplaceOriginal(responseURL), slack.MsgOptionText("登録が完了しました。", false))
 
 		// 成功レスポンス
 		c.JSON(http.StatusOK, gin.H{})
@@ -139,10 +139,10 @@ func PostSlackInteraction(c *gin.Context) {
 
 		for _, opt := range options {
 			eventName := opt.Text.Text
-			service.RegisterCorrespond(eventName, slackUserID)
+			_, _ = service.RegisterCorrespond(eventName, slackUserID)
 		}
 
-		api.PostMessage("", slack.MsgOptionReplaceOriginal(responseURL), slack.MsgOptionText("登録が完了しました。", false))
+		_, _, _ = api.PostMessage("", slack.MsgOptionReplaceOriginal(responseURL), slack.MsgOptionText("登録が完了しました。", false))
 
 		c.JSON(http.StatusOK, gin.H{})
 		return

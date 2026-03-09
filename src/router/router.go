@@ -15,7 +15,7 @@ func Router() {
 	gin.DefaultWriter = io.MultiWriter(f)
 
 	r := gin.Default()
-	r.SetTrustedProxies([]string{"127.0.0.1"})
+	_ = r.SetTrustedProxies([]string{"127.0.0.1"})
 
 	// r.Use(cors.New(cors.Config{
 	// アクセスを許可したいアクセス元
@@ -61,5 +61,5 @@ func Router() {
 	r.GET("/api/events/:id/probability", controller.GetEventProbability)
 	r.POST("/api/logs", controller.PostRegisterLogs)
 
-	r.Run(":8085")
+	_ = r.Run(":8085")
 }
