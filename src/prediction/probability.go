@@ -17,6 +17,7 @@ import (
 //   - クラスタの標準偏差を計算
 //   - 正規分布のCDFを使用して確率を計算
 //   - 確率を（クラスタサイズ / 週数）で重み付け
+//
 // 3. 確率を合計して返す
 func GetProbability(data []string, time string, weeks int) (float64, error) {
 	// 時刻文字列を分に変換
@@ -45,45 +46,43 @@ func GetProbability(data []string, time string, weeks int) (float64, error) {
 	// 1. GMMを使用してデータをクラスタリング
 	clusters := Clustering(dataMinutes)
 
-	// 2. 各クラスタの確率を計算
+	// 2. 各クラスタの確率を計算・合計
 	totalProbability := 0.0
-
 	for _, c := range clusters {
-		// クラスタ内のデータポイントが1つの場合
-		if len(c.Data) == 1 {
-			if float64(timeMinutes) >= c.Data[0] {
-				totalProbability += 1.0 / float64(weeks)
-			}
-			continue
-		}
-
-		// 2-1. クラスタ平均
-		loc := stat.Mean(c.Data, nil)
-
-		// 2-2. クラスタの標準偏差を計算
-		scale := stat.StdDev(c.Data, nil)
-
-		// scale = 0（クラスタ内のすべてのデータが同じ）
-		if scale == 0 {
-			if c.Data[0] == loc && float64(timeMinutes) >= loc {
-				totalProbability += 1.0 * (float64(len(c.Data)) / float64(weeks))
-			}
-			continue
-		}
-
-		// 2-3. 正規分布のCDFを使用して確率を計算
-		normDist := distuv.Normal{
-			Mu:    loc,
-			Sigma: scale,
-		}
-		cdf := normDist.CDF(float64(timeMinutes))
-
-		// 2-4. 重み付けされた確率
-		weightedProb := cdf * (float64(len(c.Data)) / float64(weeks))
-		totalProbability += weightedProb
+		totalProbability += calcClusterProbability(c, timeMinutes, weeks)
 	}
 
 	return totalProbability, nil
+}
+
+// calcClusterProbability 単一クラスタの来訪確率を計算する
+func calcClusterProbability(c ClusteringResult, timeMinutes int, weeks int) float64 {
+	// クラスタ内のデータポイントが1つの場合
+	if len(c.Data) == 1 {
+		if float64(timeMinutes) >= c.Data[0] {
+			return 1.0 / float64(weeks)
+		}
+		return 0
+	}
+
+	loc := stat.Mean(c.Data, nil)
+	scale := stat.StdDev(c.Data, nil)
+
+	// scale = 0（クラスタ内のすべてのデータが同じ）
+	if scale == 0 {
+		if c.Data[0] == loc && float64(timeMinutes) >= loc {
+			return 1.0 * (float64(len(c.Data)) / float64(weeks))
+		}
+		return 0
+	}
+
+	// 正規分布のCDFを使用して確率を計算し、重み付け
+	normDist := distuv.Normal{
+		Mu:    loc,
+		Sigma: scale,
+	}
+	cdf := normDist.CDF(float64(timeMinutes))
+	return cdf * (float64(len(c.Data)) / float64(weeks))
 }
 
 // GetProbabilityByUniqueDate 来訪確率を計算する（日付重複を排除）
