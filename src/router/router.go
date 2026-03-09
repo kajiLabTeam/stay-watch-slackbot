@@ -4,7 +4,9 @@ package router
 import (
 	"io"
 	"os"
+	"time"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/kajiLabTeam/stay-watch-slackbot/controller"
 	_ "github.com/kajiLabTeam/stay-watch-slackbot/docs"
@@ -20,31 +22,30 @@ func Router() {
 	r := gin.Default()
 	_ = r.SetTrustedProxies([]string{"127.0.0.1"})
 
-	// r.Use(cors.New(cors.Config{
-	// アクセスを許可したいアクセス元
-	// 	AllowOrigins: []string{
-	// 		"https://",
-	// 		"http://localhost:3000",
-	// 	},
-	// 	// アクセスを許可したいHTTPメソッド(以下の例だとPUTやDELETEはアクセスできません)
-	// 	AllowMethods: []string{
-	// 		"POST",
-	// 	},
-	// 	// 許可したいHTTPリクエストヘッダ
-	// 	AllowHeaders: []string{
-	// 		"Access-Control-Allow-Credentials",
-	// 		"Access-Control-Allow-Headers",
-	// 		"Content-Type",
-	// 		"Content-Length",
-	// 		"Accept-Encoding",
-	// 		"Accept",
-	// 		"Authorization",
-	// 	},
-	// 	// cookieなどの情報を必要とするかどうか
-	// 	AllowCredentials: true,
-	// 	// preflightリクエストの結果をキャッシュする時間
-	// 	MaxAge: 24 * time.Hour,
-	// }))
+	r.Use(cors.New(cors.Config{
+		// アクセスを許可したいアクセス元
+		AllowOrigins: []string{
+			"https://staywatch.kajilab.net",
+			"http://localhost:3000",
+		},
+		// アクセスを許可したいHTTPメソッド
+		AllowMethods: []string{
+			"GET",
+			"POST",
+		},
+		// 許可したいHTTPリクエストヘッダ
+		AllowHeaders: []string{
+			"Content-Type",
+			"Content-Length",
+			"Accept-Encoding",
+			"Accept",
+			"Authorization",
+		},
+		// cookieなどの情報を必要とするかどうか
+		AllowCredentials: true,
+		// preflightリクエストの結果をキャッシュする時間
+		MaxAge: 24 * time.Hour,
+	}))
 
 	// Slack endpoints
 	r.POST("/slack/events", controller.PostSlackEvents)
