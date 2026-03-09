@@ -9,6 +9,11 @@ import (
 	"github.com/kajiLabTeam/stay-watch-slackbot/service"
 )
 
+const (
+	msgInvalidRequestBody         = "invalid request body"
+	msgBatchRegistrationCompleted = "batch registration completed"
+)
+
 // RegisterTypesRequest はType一括登録のリクエストボディ
 type RegisterTypesRequest struct {
 	Names []string `json:"names" binding:"required,min=1"`
@@ -106,7 +111,7 @@ func GetStatuses(c *gin.Context) {
 func PostRegisterTypes(c *gin.Context) {
 	var req RegisterTypesRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondError(c, http.StatusBadRequest, "invalid request body")
+		respondError(c, http.StatusBadRequest, msgInvalidRequestBody)
 		return
 	}
 
@@ -117,7 +122,7 @@ func PostRegisterTypes(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
-		"message": "batch registration completed",
+		"message": msgBatchRegistrationCompleted,
 		"data":    types,
 		"errors":  errors,
 	})
@@ -136,7 +141,7 @@ func PostRegisterTypes(c *gin.Context) {
 func PostRegisterTools(c *gin.Context) {
 	var req RegisterToolsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondError(c, http.StatusBadRequest, "invalid request body")
+		respondError(c, http.StatusBadRequest, msgInvalidRequestBody)
 		return
 	}
 
@@ -147,7 +152,7 @@ func PostRegisterTools(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
-		"message": "batch registration completed",
+		"message": msgBatchRegistrationCompleted,
 		"data":    tools,
 		"errors":  errors,
 	})
@@ -166,7 +171,7 @@ func PostRegisterTools(c *gin.Context) {
 func PostRegisterStatuses(c *gin.Context) {
 	var req RegisterStatusesRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondError(c, http.StatusBadRequest, "invalid request body")
+		respondError(c, http.StatusBadRequest, msgInvalidRequestBody)
 		return
 	}
 
@@ -177,7 +182,7 @@ func PostRegisterStatuses(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
-		"message": "batch registration completed",
+		"message": msgBatchRegistrationCompleted,
 		"data":    statuses,
 		"errors":  errors,
 	})
@@ -257,7 +262,7 @@ func GetEventProbability(c *gin.Context) {
 func PostRegisterLogs(c *gin.Context) {
 	var req RegisterLogsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondError(c, http.StatusBadRequest, "invalid request body")
+		respondError(c, http.StatusBadRequest, msgInvalidRequestBody)
 		return
 	}
 
@@ -278,7 +283,7 @@ func PostRegisterLogs(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
-		"message": "batch registration completed",
+		"message": msgBatchRegistrationCompleted,
 		"data":    logs,
 		"errors":  errors,
 	})

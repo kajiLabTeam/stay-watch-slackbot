@@ -1,5 +1,5 @@
 # 開発環境ステージ (air を使用)
-FROM golang:1.25.4 AS development
+FROM golang:1.25 AS development
 
 RUN apt update && apt install -y git lsof &&\
     go install github.com/air-verse/air@latest
@@ -11,7 +11,7 @@ CMD ["air", "-c", ".air.toml"]
 # ============================================
 
 # ビルドステージ (バイナリをコンパイル)
-FROM golang:1.25.4 AS builder
+FROM golang:1.25 AS builder
 
 WORKDIR /stay_watch-slackbot/src
 
@@ -28,7 +28,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /app/main .
 # ============================================
 
 # 本番環境ステージ (コンパイル済みバイナリを実行)
-FROM alpine:latest AS production
+FROM alpine:3.23 AS production
 
 RUN apk --no-cache add ca-certificates tzdata
 
