@@ -19,7 +19,7 @@ func SendDM(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, "failed to open log file")
 		return
 	}
-	defer logFile.Close()
+	defer func() { _ = logFile.Close() }()
 	logger := log.New(logFile, "", 0)
 
 	// クエリパラメータから曜日を取得（デフォルトは翌日）

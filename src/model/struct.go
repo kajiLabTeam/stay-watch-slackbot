@@ -40,7 +40,7 @@ type Tool struct {
 type Event struct {
 	gorm.Model
 	Name        string `gorm:"type:varchar(255);uniqueIndex;not null"` // スケジュール、人生ゲーム、入退室、勉強会、ミーティング、作業中
-	MinNumber   int    `gorm:"default:2"` // 最低必要人数
+	MinNumber   int    `gorm:"default:2"`                              // 最低必要人数
 	TypeID      uint
 	Type        Type         `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 	Tools       []Tool       `gorm:"many2many:event_tools;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
@@ -77,5 +77,5 @@ var db *gorm.DB
 
 func init() {
 	db = lib.SQLConnect()
-	db.AutoMigrate(&User{}, &Status{}, &Type{}, &Tool{}, &Event{}, &Correspond{}, &Log{})
+	_ = db.AutoMigrate(&User{}, &Status{}, &Type{}, &Tool{}, &Event{}, &Correspond{}, &Log{})
 }
