@@ -37,6 +37,12 @@ type RegisterLogsRequest struct {
 }
 
 // GetTypes はType一覧を取得するAPIハンドラー
+// @Summary Type一覧を取得
+// @Tags types
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/types [get]
 func GetTypes(c *gin.Context) {
 	types, err := service.GetTypes()
 	if err != nil {
@@ -50,6 +56,12 @@ func GetTypes(c *gin.Context) {
 }
 
 // GetTools はTool一覧を取得するAPIハンドラー
+// @Summary Tool一覧を取得
+// @Tags tools
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/tools [get]
 func GetTools(c *gin.Context) {
 	tools, err := service.GetTools()
 	if err != nil {
@@ -63,6 +75,12 @@ func GetTools(c *gin.Context) {
 }
 
 // GetStatuses はStatus一覧を取得するAPIハンドラー
+// @Summary Status一覧を取得
+// @Tags statuses
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/statuses [get]
 func GetStatuses(c *gin.Context) {
 	statuses, err := service.GetStatuses()
 	if err != nil {
@@ -76,6 +94,15 @@ func GetStatuses(c *gin.Context) {
 }
 
 // PostRegisterTypes はTypeを一括登録するAPIハンドラー
+// @Summary Typeを一括登録
+// @Tags types
+// @Accept json
+// @Produce json
+// @Param request body RegisterTypesRequest true "登録するType名のリスト"
+// @Success 201 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/types [post]
 func PostRegisterTypes(c *gin.Context) {
 	var req RegisterTypesRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -97,6 +124,15 @@ func PostRegisterTypes(c *gin.Context) {
 }
 
 // PostRegisterTools はToolを一括登録するAPIハンドラー
+// @Summary Toolを一括登録
+// @Tags tools
+// @Accept json
+// @Produce json
+// @Param request body RegisterToolsRequest true "登録するTool名のリスト"
+// @Success 201 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/tools [post]
 func PostRegisterTools(c *gin.Context) {
 	var req RegisterToolsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -118,6 +154,15 @@ func PostRegisterTools(c *gin.Context) {
 }
 
 // PostRegisterStatuses はStatusを一括登録するAPIハンドラー
+// @Summary Statusを一括登録
+// @Tags statuses
+// @Accept json
+// @Produce json
+// @Param request body RegisterStatusesRequest true "登録するStatus名のリスト"
+// @Success 201 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/statuses [post]
 func PostRegisterStatuses(c *gin.Context) {
 	var req RegisterStatusesRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -139,7 +184,16 @@ func PostRegisterStatuses(c *gin.Context) {
 }
 
 // GetEventProbability は指定したイベントと曜日の発生確率を取得するAPIハンドラー
-// GET /api/events/:id/probability?weekday=0&time=12:00
+// @Summary イベントの発生確率を取得
+// @Tags events
+// @Produce json
+// @Param id path int true "イベントID"
+// @Param weekday query int true "曜日 (MySQL WEEKDAY形式: 0=月, 6=日)"
+// @Param time query string false "時刻 (HH:MM形式, JST。デフォルト: 現在時刻)"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/events/{id}/probability [get]
 func GetEventProbability(c *gin.Context) {
 	// パスパラメータからイベントIDを取得
 	eventIDStr := c.Param("id")
@@ -191,6 +245,15 @@ func GetEventProbability(c *gin.Context) {
 }
 
 // PostRegisterLogs はログを一括登録するAPIハンドラー
+// @Summary ログを一括登録
+// @Tags logs
+// @Accept json
+// @Produce json
+// @Param request body RegisterLogsRequest true "登録するログエントリのリスト"
+// @Success 201 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/logs [post]
 func PostRegisterLogs(c *gin.Context) {
 	var req RegisterLogsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

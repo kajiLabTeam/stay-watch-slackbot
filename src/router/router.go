@@ -7,6 +7,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/kajiLabTeam/stay-watch-slackbot/controller"
+	_ "github.com/kajiLabTeam/stay-watch-slackbot/docs"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 func Router() {
@@ -50,6 +53,9 @@ func Router() {
 	r.POST("/slack/command/add_event", controller.PostRegisterEventCommand)
 	r.POST("/slack/command/add_correspond", controller.PostRegisterCorrespondCommand)
 	r.GET("/notification", controller.SendDM)
+
+	// Swagger
+	r.GET("/docs/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	// REST API endpoints
 	r.POST("/api/types", controller.PostRegisterTypes)

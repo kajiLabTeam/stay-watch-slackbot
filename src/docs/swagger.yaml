@@ -1,0 +1,281 @@
+basePath: /
+definitions:
+  controller.LogEntry:
+    properties:
+      created_at:
+        description: 'RFC3339形式 JST or UTC (例: "2006-01-02T15:04:05+09:00" or "2006-01-02T15:04:05Z")'
+        type: string
+      event_id:
+        type: integer
+      status_id:
+        type: integer
+    required:
+    - created_at
+    - event_id
+    - status_id
+    type: object
+  controller.RegisterLogsRequest:
+    properties:
+      logs:
+        items:
+          $ref: '#/definitions/controller.LogEntry'
+        minItems: 1
+        type: array
+    required:
+    - logs
+    type: object
+  controller.RegisterStatusesRequest:
+    properties:
+      names:
+        items:
+          type: string
+        minItems: 1
+        type: array
+    required:
+    - names
+    type: object
+  controller.RegisterToolsRequest:
+    properties:
+      names:
+        items:
+          type: string
+        minItems: 1
+        type: array
+    required:
+    - names
+    type: object
+  controller.RegisterTypesRequest:
+    properties:
+      names:
+        items:
+          type: string
+        minItems: 1
+        type: array
+    required:
+    - names
+    type: object
+host: localhost:8085
+info:
+  contact: {}
+  description: 研究室の来訪予測・活動管理のためのAPI
+  title: Stay Watch Slackbot API
+  version: "1.0"
+paths:
+  /api/events/{id}/probability:
+    get:
+      parameters:
+      - description: イベントID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: '曜日 (MySQL WEEKDAY形式: 0=月, 6=日)'
+        in: query
+        name: weekday
+        required: true
+        type: integer
+      - description: '時刻 (HH:MM形式, JST。デフォルト: 現在時刻)'
+        in: query
+        name: time
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: イベントの発生確率を取得
+      tags:
+      - events
+  /api/logs:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 登録するログエントリのリスト
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/controller.RegisterLogsRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: ログを一括登録
+      tags:
+      - logs
+  /api/statuses:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Status一覧を取得
+      tags:
+      - statuses
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 登録するStatus名のリスト
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/controller.RegisterStatusesRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Statusを一括登録
+      tags:
+      - statuses
+  /api/tools:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Tool一覧を取得
+      tags:
+      - tools
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 登録するTool名のリスト
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/controller.RegisterToolsRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Toolを一括登録
+      tags:
+      - tools
+  /api/types:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Type一覧を取得
+      tags:
+      - types
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 登録するType名のリスト
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/controller.RegisterTypesRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Typeを一括登録
+      tags:
+      - types
+swagger: "2.0"
