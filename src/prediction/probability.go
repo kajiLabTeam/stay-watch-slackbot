@@ -2,6 +2,7 @@ package prediction
 
 import (
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/kajiLabTeam/stay-watch-slackbot/lib"
@@ -82,7 +83,11 @@ func calcClusterProbability(c ClusteringResult, timeMinutes int, weeks int) floa
 		Sigma: scale,
 	}
 	cdf := normDist.CDF(float64(timeMinutes))
-	return cdf * (float64(len(c.Data)) / float64(weeks))
+	result := cdf * (float64(len(c.Data)) / float64(weeks))
+	if math.IsNaN(result) || math.IsInf(result, 0) {
+		return 0
+	}
+	return result
 }
 
 // GetProbabilityByUniqueDate 来訪確率を計算する（日付重複を排除）
