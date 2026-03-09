@@ -39,10 +39,30 @@ func (gmm *GaussianMixture) Fit(data []float64) {
 	n := len(data)
 	k := gmm.NComponents
 
-	// K-means++スタイルの初期化
 	gmm.initializeKMeansPlusPlus(data)
+	gmm.initializeVariancesAndWeights(data)
 
-	// 分散と重みを初期化
+	responsibilities := make([][]float64, n)
+	for i := range responsibilities {
+		responsibilities[i] = make([]float64, k)
+	}
+	prevLogLikelihood := math.Inf(-1)
+
+	for iter := 0; iter < gmm.MaxIter; iter++ {
+		gmm.eStep(data, responsibilities)
+		gmm.mStep(data, responsibilities)
+
+		logLikelihood := gmm.logLikelihood(data)
+		if math.Abs(logLikelihood-prevLogLikelihood) < gmm.Tolerance {
+			break
+		}
+		prevLogLikelihood = logLikelihood
+	}
+}
+
+// initializeVariancesAndWeights 分散と重みを初期化する
+func (gmm *GaussianMixture) initializeVariancesAndWeights(data []float64) {
+	k := gmm.NComponents
 	gmm.Variances = make([]float64, k)
 	gmm.Weights = make([]float64, k)
 	dataVar := stat.Variance(data, nil)
@@ -53,65 +73,60 @@ func (gmm *GaussianMixture) Fit(data []float64) {
 		gmm.Variances[i] = dataVar
 		gmm.Weights[i] = 1.0 / float64(k)
 	}
+}
 
-	// EMアルゴリズム
-	// responsibilities[i][j] = データiがクラスタjに属する確率
-	responsibilities := make([][]float64, n)
-	for i := range responsibilities {
-		responsibilities[i] = make([]float64, k)
-	}
-	prevLogLikelihood := math.Inf(-1)
-
-	for iter := 0; iter < gmm.MaxIter; iter++ {
-		// Eステップ: 負担率を計算
-		for i, x := range data {
-			var total float64
-			probs := make([]float64, k)
-			for j := 0; j < k; j++ {
-				normDist := distuv.Normal{
-					Mu:    gmm.Means[j],
-					Sigma: math.Sqrt(gmm.Variances[j]),
-				}
-				probs[j] = gmm.Weights[j] * normDist.Prob(x)
-				total += probs[j]
-			}
-			for j := 0; j < k; j++ {
-				if total > 0 {
-					responsibilities[i][j] = probs[j] / total
-				} else {
-					responsibilities[i][j] = 1.0 / float64(k)
-				}
-			}
-		}
-
-		// Mステップ: パラメータを更新
+// eStep Eステップ: 各データポイントの負担率を計算する
+func (gmm *GaussianMixture) eStep(data []float64, responsibilities [][]float64) {
+	k := gmm.NComponents
+	for i, x := range data {
+		probs := make([]float64, k)
+		var total float64
 		for j := 0; j < k; j++ {
-			var nk, meanSum, varSum float64
-			for i := 0; i < n; i++ {
-				r := responsibilities[i][j]
-				nk += r
-				meanSum += r * data[i]
+			normDist := distuv.Normal{
+				Mu:    gmm.Means[j],
+				Sigma: math.Sqrt(gmm.Variances[j]),
 			}
-
-			if nk > 1e-10 {
-				gmm.Means[j] = meanSum / nk
-				for i := 0; i < n; i++ {
-					r := responsibilities[i][j]
-					diff := data[i] - gmm.Means[j]
-					varSum += r * diff * diff
-				}
-				gmm.Variances[j] = math.Max(varSum/nk, 1e-6)
-				gmm.Weights[j] = nk / float64(n)
+			probs[j] = gmm.Weights[j] * normDist.Prob(x)
+			total += probs[j]
+		}
+		for j := 0; j < k; j++ {
+			if total > 0 {
+				responsibilities[i][j] = probs[j] / total
+			} else {
+				responsibilities[i][j] = 1.0 / float64(k)
 			}
 		}
-
-		// 対数尤度を計算し、収束をチェック
-		logLikelihood := gmm.logLikelihood(data)
-		if math.Abs(logLikelihood-prevLogLikelihood) < gmm.Tolerance {
-			break
-		}
-		prevLogLikelihood = logLikelihood
 	}
+}
+
+// mStep Mステップ: パラメータを更新する
+func (gmm *GaussianMixture) mStep(data []float64, responsibilities [][]float64) {
+	n := len(data)
+	for j := 0; j < gmm.NComponents; j++ {
+		gmm.updateComponent(j, data, responsibilities, n)
+	}
+}
+
+// updateComponent 1コンポーネント分のパラメータを更新する
+func (gmm *GaussianMixture) updateComponent(j int, data []float64, responsibilities [][]float64, n int) {
+	var nk, meanSum float64
+	for i := 0; i < n; i++ {
+		r := responsibilities[i][j]
+		nk += r
+		meanSum += r * data[i]
+	}
+	if nk <= 1e-10 {
+		return
+	}
+	gmm.Means[j] = meanSum / nk
+	var varSum float64
+	for i := 0; i < n; i++ {
+		r := responsibilities[i][j]
+		diff := data[i] - gmm.Means[j]
+		varSum += r * diff * diff
+	}
+	gmm.Variances[j] = math.Max(varSum/nk, 1e-6)
+	gmm.Weights[j] = nk / float64(n)
 }
 
 // initializeKMeansPlusPlus K-means++を使用して初期中心を選択する
@@ -124,41 +139,46 @@ func (gmm *GaussianMixture) initializeKMeansPlusPlus(data []float64) {
 		return
 	}
 
-	// 最初の中心をランダムに選択
 	gmm.Means[0] = data[rand.Intn(n)]
 
-	// 残りの中心を距離の二乗に比例した確率で選択
 	for i := 1; i < k; i++ {
-		distances := make([]float64, n)
-		var totalDist float64
+		distances, totalDist := calcMinDistances(data, gmm.Means[:i])
+		gmm.Means[i] = selectByDistance(data, distances, totalDist)
+	}
+}
 
-		for j, x := range data {
-			minDist := math.Inf(1)
-			for l := 0; l < i; l++ {
-				dist := (x - gmm.Means[l]) * (x - gmm.Means[l])
-				if dist < minDist {
-					minDist = dist
-				}
+// calcMinDistances 各データポイントから最も近い中心までの距離の二乗を計算する
+func calcMinDistances(data []float64, centers []float64) ([]float64, float64) {
+	distances := make([]float64, len(data))
+	var totalDist float64
+	for j, x := range data {
+		minDist := math.Inf(1)
+		for _, c := range centers {
+			dist := (x - c) * (x - c)
+			if dist < minDist {
+				minDist = dist
 			}
-			distances[j] = minDist
-			totalDist += minDist
 		}
+		distances[j] = minDist
+		totalDist += minDist
+	}
+	return distances, totalDist
+}
 
-		// 距離に比例した確率で選択
-		if totalDist > 0 {
-			r := rand.Float64() * totalDist
-			var cumSum float64
-			for j, d := range distances {
-				cumSum += d
-				if cumSum >= r {
-					gmm.Means[i] = data[j]
-					break
-				}
-			}
-		} else {
-			gmm.Means[i] = data[rand.Intn(n)]
+// selectByDistance 距離の二乗に比例した確率でデータポイントを選択する
+func selectByDistance(data []float64, distances []float64, totalDist float64) float64 {
+	if totalDist <= 0 {
+		return data[rand.Intn(len(data))]
+	}
+	r := rand.Float64() * totalDist
+	var cumSum float64
+	for j, d := range distances {
+		cumSum += d
+		if cumSum >= r {
+			return data[j]
 		}
 	}
+	return data[len(data)-1]
 }
 
 // logLikelihood 対数尤度を計算する

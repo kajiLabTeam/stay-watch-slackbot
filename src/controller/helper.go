@@ -7,6 +7,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+const msgInternalServerError = "internal server error"
+
 // respondError は統一されたエラーレスポンスを返す
 func respondError(c *gin.Context, statusCode int, message string) {
 	c.JSON(statusCode, gin.H{"error": message})

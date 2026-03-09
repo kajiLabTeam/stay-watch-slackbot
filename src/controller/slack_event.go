@@ -23,7 +23,7 @@ func PostSlackEvents(c *gin.Context) {
 		return
 	}
 	if _, err := sv.Write(body); err != nil {
-		respondError(c, http.StatusInternalServerError, "internal server error")
+		respondError(c, http.StatusInternalServerError, msgInternalServerError)
 		return
 	}
 	if err := sv.Ensure(); err != nil {
@@ -32,7 +32,7 @@ func PostSlackEvents(c *gin.Context) {
 	}
 	eventsAPIEvent, err := slackevents.ParseEvent(json.RawMessage(body), slackevents.OptionNoVerifyToken())
 	if err != nil {
-		respondError(c, http.StatusInternalServerError, "internal server error")
+		respondError(c, http.StatusInternalServerError, msgInternalServerError)
 		return
 	}
 
@@ -40,7 +40,7 @@ func PostSlackEvents(c *gin.Context) {
 		var r *slackevents.ChallengeResponse
 		err := json.Unmarshal([]byte(body), &r)
 		if err != nil {
-			respondError(c, http.StatusInternalServerError, "internal server error")
+			respondError(c, http.StatusInternalServerError, msgInternalServerError)
 			return
 		}
 		c.Header("Content-Type", "text/plain")
@@ -55,7 +55,7 @@ func PostSlackEvents(c *gin.Context) {
 			obo, err := service.GetUsers()
 			if err != nil {
 				if _, _, err := api.PostMessage(ev.Channel, slack.MsgOptionText("Sorry, I can't get the data.", false)); err != nil {
-					respondError(c, http.StatusInternalServerError, "internal server error")
+					respondError(c, http.StatusInternalServerError, msgInternalServerError)
 				}
 				return
 			}
@@ -81,7 +81,7 @@ func PostSlackEvents(c *gin.Context) {
 				},
 			))
 			if err != nil {
-				respondError(c, http.StatusInternalServerError, "internal server error")
+				respondError(c, http.StatusInternalServerError, msgInternalServerError)
 				return
 			}
 			return

@@ -94,33 +94,22 @@ func getActivityTimeRange(eventID uint, dayOfWeek time.Weekday) (ActivityTimeRan
 		}
 	}
 
-	// 開始時刻の予測
-	var startTime string
-	if len(startTimes) > 0 {
-		startMinutes, err := prediction.GetMostLikelyTime(startTimes, weeks)
-		if err != nil {
-			startTime = "00:00"
-		} else {
-			startTime = lib.MinutesToTime(startMinutes)
-		}
-	} else {
-		startTime = "00:00"
-	}
-
-	// 終了時刻の予測
-	var endTime string
-	if len(endTimes) > 0 {
-		endMinutes, err := prediction.GetMostLikelyTime(endTimes, weeks)
-		if err != nil {
-			endTime = "23:59"
-		} else {
-			endTime = lib.MinutesToTime(endMinutes)
-		}
-	} else {
-		endTime = "23:59"
-	}
+	startTime := predictTime(startTimes, weeks, "00:00")
+	endTime := predictTime(endTimes, weeks, "23:59")
 
 	return ActivityTimeRange{Start: startTime, End: endTime}, nil
+}
+
+// predictTime は時刻リストから最尤時刻を予測する。データ不足やエラー時はデフォルト値を返す
+func predictTime(times []string, weeks int, defaultTime string) string {
+	if len(times) == 0 {
+		return defaultTime
+	}
+	minutes, err := prediction.GetMostLikelyTime(times, weeks)
+	if err != nil {
+		return defaultTime
+	}
+	return lib.MinutesToTime(minutes)
 }
 
 // getUserActivityEventIDs はユーザーが登録している活動のイベントIDセットを取得する
@@ -169,88 +158,84 @@ func filterByCommonActivities(candidates []model.User, receiverActivityEventIDs 
 	return filtered
 }
 
+// extractStartDatetimes は "start" ステータスのログからJST日時文字列を抽出する
+func extractStartDatetimes(logs []model.Log, loc *time.Location) []string {
+	var datetimeStrings []string
+	for _, log := range logs {
+		if log.Status.Name == "start" {
+			datetimeStrings = append(datetimeStrings, log.CreatedAt.In(loc).Format("2006-01-02 15:04"))
+		}
+	}
+	return datetimeStrings
+}
+
+// calcHourlyProbabilities は各時間帯（JST 0〜23時）の確率を計算する
+// H時 = CDF(H:30) - CDF((H-1):30) で (H-1):30〜H:30 の確率密度合計を求める
+func calcHourlyProbabilities(datetimeStrings []string, weeks int) []float64 {
+	probabilities := make([]float64, 24)
+	for hour := 0; hour < 24; hour++ {
+		probabilities[hour] = calcHourProbability(datetimeStrings, hour, weeks)
+	}
+	return probabilities
+}
+
+// calcHourProbability は指定時間帯の確率を計算する
+func calcHourProbability(datetimeStrings []string, hour int, weeks int) float64 {
+	endTimeJST := fmt.Sprintf("%02d:30", hour)
+	startTimeJST := fmt.Sprintf("%02d:30", (hour-1+24)%24)
+
+	cdfEnd, err := prediction.GetProbabilityByUniqueDate(datetimeStrings, endTimeJST, weeks)
+	if err != nil {
+		return 0.0
+	}
+	cdfStart, err := prediction.GetProbabilityByUniqueDate(datetimeStrings, startTimeJST, weeks)
+	if err != nil {
+		return 0.0
+	}
+
+	prob := cdfEnd - cdfStart
+	if prob < 0 {
+		return 0.0
+	}
+	if prob > 1.0 {
+		return 1.0
+	}
+	return prob
+}
+
+// calcEventProbability はイベント1件分の活動確率を計算する
+func calcEventProbability(ev model.Event, dayOfWeek time.Weekday) ActivityProbability {
+	logs, err := model.ReadLogsByEventIDAndDayOfWeek(ev.ID, dayOfWeek)
+	if err != nil || len(logs) == 0 {
+		return ActivityProbability{ActivityName: ev.Name, Probabilities: make([]float64, 24)}
+	}
+
+	weeks := calculateWeeks(logs)
+	datetimeStrings := extractStartDatetimes(logs, lib.JST)
+	if len(datetimeStrings) == 0 {
+		return ActivityProbability{ActivityName: ev.Name, Probabilities: make([]float64, 24)}
+	}
+
+	return ActivityProbability{
+		ActivityName:  ev.Name,
+		Probabilities: calcHourlyProbabilities(datetimeStrings, weeks),
+	}
+}
+
 // GetAllActivityProbabilities は全活動の1時間ごとの発生確率を取得する
 // 各時間帯（JST H時）について、(H-1):30〜H:30 の範囲の確率密度合計を計算する
 // 例: 12時の場合、CDF(12:30) - CDF(11:30) で 11:30〜12:30 の確率を求める
 func GetAllActivityProbabilities(dayOfWeek time.Weekday) ([]ActivityProbability, error) {
-	// 全イベントを取得
 	event := model.Event{}
 	events, err := event.ReadAll()
 	if err != nil {
 		return nil, fmt.Errorf("failed to read events: %w", err)
 	}
 
-	jst := lib.JST
 	var results []ActivityProbability
-
 	for _, ev := range events {
-		probabilities := make([]float64, 24)
-
-		// 該当曜日のログを取得
-		logs, err := model.ReadLogsByEventIDAndDayOfWeek(ev.ID, dayOfWeek)
-		if err != nil || len(logs) == 0 {
-			// データなしの場合は全て0.0
-			results = append(results, ActivityProbability{
-				ActivityName:  ev.Name,
-				Probabilities: probabilities,
-			})
-			continue
-		}
-
-		weeks := calculateWeeks(logs)
-
-		// "start" ステータスのログのみ抽出（日付付き）
-		var datetimeStrings []string
-		for _, log := range logs {
-			if log.Status.Name == "start" {
-				datetimeStr := log.CreatedAt.In(jst).Format("2006-01-02 15:04")
-				datetimeStrings = append(datetimeStrings, datetimeStr)
-			}
-		}
-
-		if len(datetimeStrings) == 0 {
-			results = append(results, ActivityProbability{
-				ActivityName:  ev.Name,
-				Probabilities: probabilities,
-			})
-			continue
-		}
-
-		// 各時間帯（JST 0〜23時）の確率を計算
-		// H時 = CDF(H:30) - CDF((H-1):30) で (H-1):30〜H:30 の確率密度合計を求める
-		// datetimeStringsはJSTなので、targetTimeもJSTで指定する
-		for hour := 0; hour < 24; hour++ {
-			endTimeJST := fmt.Sprintf("%02d:30", hour)
-			startTimeJST := fmt.Sprintf("%02d:30", (hour-1+24)%24)
-
-			cdfEnd, err := prediction.GetProbabilityByUniqueDate(datetimeStrings, endTimeJST, weeks)
-			if err != nil {
-				probabilities[hour] = 0.0
-				continue
-			}
-
-			cdfStart, err := prediction.GetProbabilityByUniqueDate(datetimeStrings, startTimeJST, weeks)
-			if err != nil {
-				probabilities[hour] = 0.0
-				continue
-			}
-
-			prob := cdfEnd - cdfStart
-			if prob < 0 {
-				prob = 0.0
-			}
-			if prob > 1.0 {
-				prob = 1.0
-			}
-			probabilities[hour] = prob
-		}
-
-		results = append(results, ActivityProbability{
-			ActivityName:  ev.Name,
-			Probabilities: probabilities,
-		})
+		results = append(results, calcEventProbability(ev, dayOfWeek))
 	}
-
 	return results, nil
 }
 
