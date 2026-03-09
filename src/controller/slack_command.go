@@ -38,7 +38,7 @@ func PostRegisterEventCommand(c *gin.Context) {
 	types, err := service.GetTypes()
 	if err != nil {
 		log.Printf("Error getting types: %v", err)
-		respondError(c, http.StatusInternalServerError, "internal server error")
+		respondError(c, http.StatusInternalServerError, msgInternalServerError)
 		return
 	}
 
@@ -55,7 +55,7 @@ func PostRegisterEventCommand(c *gin.Context) {
 	tools, err := service.GetTools()
 	if err != nil {
 		log.Printf("Error getting tools: %v", err)
-		respondError(c, http.StatusInternalServerError, "internal server error")
+		respondError(c, http.StatusInternalServerError, msgInternalServerError)
 		return
 	}
 
@@ -120,7 +120,7 @@ func PostRegisterEventCommand(c *gin.Context) {
 	_, err = api.OpenView(s.TriggerID, modalRequest)
 	if err != nil {
 		log.Printf("Error opening view: %v", err)
-		respondError(c, http.StatusInternalServerError, "internal server error")
+		respondError(c, http.StatusInternalServerError, msgInternalServerError)
 		return
 	}
 	respondSlackSuccess(c, "モーダルを開きました。")
@@ -136,7 +136,7 @@ func PostRegisterCorrespondCommand(c *gin.Context) {
 
 	events, err := service.GetEvents()
 	if err != nil {
-		respondError(c, http.StatusInternalServerError, "internal server error")
+		respondError(c, http.StatusInternalServerError, msgInternalServerError)
 		return
 	}
 
@@ -170,7 +170,7 @@ func PostRegisterCorrespondCommand(c *gin.Context) {
 	_, err = api.OpenView(s.TriggerID, modalRequest)
 	if err != nil {
 		log.Printf("Error opening view: %v", err)
-		respondError(c, http.StatusInternalServerError, "internal server error")
+		respondError(c, http.StatusInternalServerError, msgInternalServerError)
 		return
 	}
 	respondSlackSuccess(c, "モーダルを開きました。")
