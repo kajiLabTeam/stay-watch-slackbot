@@ -61,6 +61,34 @@ info:
   title: Stay Watch Slackbot API
   version: "1.0"
 paths:
+  /api/activities/probabilities:
+    get:
+      parameters:
+      - description: '曜日 (MySQL WEEKDAY形式: 0=月, 6=日)。省略時は今日の曜日'
+        in: query
+        name: weekday
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 全活動の時間帯別発生確率を取得
+      tags:
+      - activities
   /api/events/{id}/probability:
     get:
       parameters:
