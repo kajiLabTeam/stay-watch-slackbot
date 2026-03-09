@@ -170,7 +170,8 @@ func filterByCommonActivities(candidates []model.User, receiverActivityEventIDs 
 }
 
 // GetAllActivityProbabilities は全活動の1時間ごとの発生確率を取得する
-// 各時間帯（JST 0〜23時）の中央（HH:30）を基準に確率を計算する
+// 各時間帯（JST H時）について、(H-1):30〜H:30 の範囲の確率密度合計を計算する
+// 例: 12時の場合、CDF(12:30) - CDF(11:30) で 11:30〜12:30 の確率を求める
 func GetAllActivityProbabilities(dayOfWeek time.Weekday) ([]ActivityProbability, error) {
 	// 全イベントを取得
 	event := model.Event{}
@@ -202,7 +203,7 @@ func GetAllActivityProbabilities(dayOfWeek time.Weekday) ([]ActivityProbability,
 		var datetimeStrings []string
 		for _, log := range logs {
 			if log.Status.Name == "start" {
-				datetimeStr := log.CreatedAt.Format("2006-01-02 15:04")
+				datetimeStr := log.CreatedAt.In(jst).Format("2006-01-02 15:04")
 				datetimeStrings = append(datetimeStrings, datetimeStr)
 			}
 		}
@@ -216,15 +217,30 @@ func GetAllActivityProbabilities(dayOfWeek time.Weekday) ([]ActivityProbability,
 		}
 
 		// 各時間帯（JST 0〜23時）の確率を計算
+		// H時 = CDF(H:30) - CDF((H-1):30) で (H-1):30〜H:30 の確率密度合計を求める
+		// datetimeStringsはJSTなので、targetTimeもJSTで指定する
 		for hour := 0; hour < 24; hour++ {
-			// JST HH:30 をUTCに変換
-			jstTime := time.Date(2000, 1, 1, hour, 30, 0, 0, jst)
-			utcTimeStr := jstTime.UTC().Format("15:04")
+			endTimeJST := fmt.Sprintf("%02d:30", hour)
+			startTimeJST := fmt.Sprintf("%02d:30", (hour-1+24)%24)
 
-			prob, err := prediction.GetProbabilityByUniqueDate(datetimeStrings, utcTimeStr, weeks)
+			cdfEnd, err := prediction.GetProbabilityByUniqueDate(datetimeStrings, endTimeJST, weeks)
 			if err != nil {
 				probabilities[hour] = 0.0
 				continue
+			}
+
+			cdfStart, err := prediction.GetProbabilityByUniqueDate(datetimeStrings, startTimeJST, weeks)
+			if err != nil {
+				probabilities[hour] = 0.0
+				continue
+			}
+
+			prob := cdfEnd - cdfStart
+			if prob < 0 {
+				prob = 0.0
+			}
+			if prob > 1.0 {
+				prob = 1.0
 			}
 			probabilities[hour] = prob
 		}
