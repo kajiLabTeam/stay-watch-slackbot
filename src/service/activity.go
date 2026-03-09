@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/kajiLabTeam/stay-watch-slackbot/lib"
@@ -194,7 +195,7 @@ func calcHourProbability(datetimeStrings []string, hour int, weeks int) float64 
 	}
 
 	prob := cdfEnd - cdfStart
-	if prob < 0 {
+	if math.IsNaN(prob) || math.IsInf(prob, 0) || prob < 0 {
 		return 0.0
 	}
 	if prob > 1.0 {
