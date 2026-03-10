@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/kajiLabTeam/stay-watch-slackbot/lib"
 	"github.com/slack-go/slack"
 )
 
@@ -26,7 +27,7 @@ func GetProbability(userID int) (Probability, string, error) {
 	}
 
 	var probability Probability
-	now := time.Now().UTC()
+	now := time.Now().In(lib.JST)
 	timeStr := now.Format("15:04")
 	w := now.Weekday()
 	// 月曜を0とする変換

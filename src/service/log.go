@@ -11,10 +11,10 @@ import (
 type LogEntryInput struct {
 	EventID   uint
 	StatusID  uint
-	CreatedAt string // RFC3339形式 (JSTまたはUTC、例: "2006-01-02T15:04:05+09:00" or "2006-01-02T15:04:05Z")
+	EventTime string // RFC3339形式 JST (例: "2006-01-02T15:04:05+09:00")
 }
 
-// RegisterLog は単一のログを登録する（JST→UTC変換、外部キー検証）
+// RegisterLog は単一のログを登録する（JST検証付き）
 func RegisterLog(input LogEntryInput) (model.Log, error) {
 	// Event存在確認
 	event := model.Event{}
@@ -30,20 +30,18 @@ func RegisterLog(input LogEntryInput) (model.Log, error) {
 		return model.Log{}, fmt.Errorf("status_id %d not found", input.StatusID)
 	}
 
-	// 時刻をパースしてUTCに変換（タイムゾーン検証付き: JST or UTC のみ許可）
-	parseResult, err := lib.ParseWithTimezoneDetection(input.CreatedAt)
+	// 時刻をパース（JSTのみ許可）
+	eventTimeJST, err := lib.ParseJST(input.EventTime)
 	if err != nil {
-		return model.Log{}, fmt.Errorf("invalid created_at: %v", err)
+		return model.Log{}, fmt.Errorf("invalid event_time: %v", err)
 	}
-	createdAtUTC := parseResult.Time
 
 	// ログを作成
 	log := model.Log{
-		EventID:  input.EventID,
-		StatusID: input.StatusID,
+		EventID:   input.EventID,
+		StatusID:  input.StatusID,
+		EventTime: eventTimeJST,
 	}
-	// CreatedAtを手動で設定するためにgorm.Modelを直接操作
-	log.CreatedAt = createdAtUTC
 
 	if err := log.Create(); err != nil {
 		return model.Log{}, err

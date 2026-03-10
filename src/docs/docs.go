@@ -391,7 +391,7 @@ const docTemplate = `{
             ],
             "properties": {
                 "created_at": {
-                    "description": "RFC3339形式 JST or UTC (例: \"2006-01-02T15:04:05+09:00\" or \"2006-01-02T15:04:05Z\")",
+                    "description": "RFC3339形式 JST (例: \"2006-01-02T15:04:05+09:00\")",
                     "type": "string"
                 },
                 "event_id": {
