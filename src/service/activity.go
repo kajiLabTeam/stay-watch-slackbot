@@ -184,11 +184,11 @@ func calcHourProbability(datetimeStrings []string, hour int, weeks int) float64 
 	endTimeJST := fmt.Sprintf("%02d:30", hour)
 	startTimeJST := fmt.Sprintf("%02d:30", (hour-1+24)%24)
 
-	cdfEnd, err := prediction.GetProbabilityByUniqueDate(datetimeStrings, endTimeJST, weeks)
+	cdfEnd, err := prediction.GetProbabilityFromDatetimes(datetimeStrings, endTimeJST, weeks)
 	if err != nil {
 		return 0.0
 	}
-	cdfStart, err := prediction.GetProbabilityByUniqueDate(datetimeStrings, startTimeJST, weeks)
+	cdfStart, err := prediction.GetProbabilityFromDatetimes(datetimeStrings, startTimeJST, weeks)
 	if err != nil {
 		return 0.0
 	}

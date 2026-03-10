@@ -122,6 +122,25 @@ func GetProbabilityByUniqueDate(data []string, time string, weeks int) (float64,
 	return GetProbability(uniqueTimes, time, weeks)
 }
 
+// GetProbabilityFromDatetimes 来訪確率を計算する（日付重複排除なし）
+// 同じ日に複数の活動がある場合もすべての時刻を使用する
+// data: "2006-01-02 15:04"形式の日付時刻文字列スライス
+// time: "HH:MM"形式の時刻文字列
+// weeks: 週数
+func GetProbabilityFromDatetimes(data []string, time string, weeks int) (float64, error) {
+	// datetime文字列から時刻部分のみを抽出（重複排除しない）
+	times := make([]string, 0, len(data))
+	for _, d := range data {
+		parts := strings.SplitN(d, " ", 2)
+		if len(parts) != 2 {
+			return 0, fmt.Errorf("invalid datetime format: %s", d)
+		}
+		times = append(times, parts[1])
+	}
+
+	return GetProbability(times, time, weeks)
+}
+
 // GetMostLikelyTime 活動の最も可能性の高い時間を見つける
 // 各クラスタをガウス分布とした場合の頂点（中心）の時刻に重みを付与し、その合計を返す
 func GetMostLikelyTime(data []string, weeks int) (int, error) {
