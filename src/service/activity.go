@@ -33,7 +33,7 @@ func calculateWeeks(logs []model.Log) int {
 			oldestLog = log
 		}
 	}
-	now := time.Now().UTC()
+	now := lib.NowJST()
 	days := int(now.Sub(oldestLog.CreatedAt).Hours() / 24)
 	return (days / 7) + 1
 }
@@ -50,7 +50,7 @@ func GetActivityProbability(eventID uint, dayOfWeek time.Weekday, targetTime str
 	weeks := calculateWeeks(logs)
 
 	// 3. Status が "start" のログをフィルタリング（日付付き）
-	// DBはUTCなのでそのまま使用（targetTimeもUTC）
+	// DBはJSTなのでそのまま使用（targetTimeもJST）
 	var datetimeStrings []string
 	for _, log := range logs {
 		if log.Status.Name == "start" {
@@ -81,12 +81,11 @@ func getActivityTimeRange(eventID uint, dayOfWeek time.Weekday) (ActivityTimeRan
 
 	weeks := calculateWeeks(logs)
 
-	// start と end のログを分離
-	// Slack表示用にJSTに変換
+	// start と end のログを分離（DBはJSTなのでそのまま使用）
 	var startTimes []string
 	var endTimes []string
 	for _, log := range logs {
-		timeStr := lib.FormatTimeJST(log.CreatedAt)
+		timeStr := lib.FormatTime(log.CreatedAt)
 		switch log.Status.Name {
 		case "start":
 			startTimes = append(startTimes, timeStr)
@@ -160,11 +159,11 @@ func filterByCommonActivities(candidates []model.User, receiverActivityEventIDs 
 }
 
 // extractStartDatetimes は "start" ステータスのログからJST日時文字列を抽出する
-func extractStartDatetimes(logs []model.Log, loc *time.Location) []string {
+func extractStartDatetimes(logs []model.Log) []string {
 	var datetimeStrings []string
 	for _, log := range logs {
 		if log.Status.Name == "start" {
-			datetimeStrings = append(datetimeStrings, log.CreatedAt.In(loc).Format("2006-01-02 15:04"))
+			datetimeStrings = append(datetimeStrings, log.CreatedAt.Format("2006-01-02 15:04"))
 		}
 	}
 	return datetimeStrings
@@ -212,7 +211,7 @@ func calcEventProbability(ev model.Event, dayOfWeek time.Weekday) ActivityProbab
 	}
 
 	weeks := calculateWeeks(logs)
-	datetimeStrings := extractStartDatetimes(logs, lib.JST)
+	datetimeStrings := extractStartDatetimes(logs)
 	if len(datetimeStrings) == 0 {
 		return ActivityProbability{ActivityName: ev.Name, Probabilities: make([]float64, 24)}
 	}

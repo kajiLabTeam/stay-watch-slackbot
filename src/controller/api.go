@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/kajiLabTeam/stay-watch-slackbot/lib"
 	"github.com/kajiLabTeam/stay-watch-slackbot/service"
 )
 
@@ -33,7 +34,7 @@ type RegisterStatusesRequest struct {
 type LogEntry struct {
 	EventID   uint   `json:"event_id" binding:"required"`
 	StatusID  uint   `json:"status_id" binding:"required"`
-	CreatedAt string `json:"created_at" binding:"required"` // RFC3339形式 JST or UTC (例: "2006-01-02T15:04:05+09:00" or "2006-01-02T15:04:05Z")
+	CreatedAt string `json:"created_at" binding:"required"` // RFC3339形式 JST (例: "2006-01-02T15:04:05+09:00")
 }
 
 // RegisterLogsRequest はログ一括登録のリクエストボディ
@@ -223,19 +224,16 @@ func GetEventProbability(c *gin.Context) {
 	weekday := time.Weekday((weekdayInt + 1) % 7)
 
 	// クエリパラメータから時刻を取得（オプション、デフォルトは現在時刻JST）
-	jst := time.FixedZone("JST", 9*60*60)
-	inputTimeJST := c.DefaultQuery("time", time.Now().In(jst).Format("15:04"))
+	targetTimeJST := c.DefaultQuery("time", lib.NowJST().Format("15:04"))
 
-	// JST入力をUTCに変換
-	parsedJST, err := time.ParseInLocation("15:04", inputTimeJST, jst)
-	if err != nil {
+	// JSTの時刻をそのまま使用（DB・内部処理すべてJST統一）
+	if _, err := time.ParseInLocation("15:04", targetTimeJST, lib.JST); err != nil {
 		respondError(c, http.StatusBadRequest, "invalid time format (expected HH:MM)")
 		return
 	}
-	targetTimeUTC := parsedJST.UTC().Format("15:04")
 
 	// 確率を取得
-	probability, err := service.GetActivityProbability(uint(eventID), weekday, targetTimeUTC)
+	probability, err := service.GetActivityProbability(uint(eventID), weekday, targetTimeJST)
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, err.Error())
 		return
@@ -244,7 +242,7 @@ func GetEventProbability(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"event_id":    eventID,
 		"weekday":     weekdayInt,
-		"time":        inputTimeJST,
+		"time":        targetTimeJST,
 		"probability": probability,
 	})
 }
@@ -259,13 +257,12 @@ func GetEventProbability(c *gin.Context) {
 // @Failure 500 {object} map[string]interface{}
 // @Router /api/activities/probabilities [get]
 func GetAllActivityProbabilities(c *gin.Context) {
-	jst := time.FixedZone("JST", 9*60*60)
 	var weekday time.Weekday
 
 	weekdayStr := c.Query("weekday")
 	if weekdayStr == "" {
 		// デフォルト: 今日の曜日（JST）
-		weekday = time.Now().In(jst).Weekday()
+		weekday = lib.NowJST().Weekday()
 	} else {
 		weekdayInt, err := strconv.Atoi(weekdayStr)
 		if err != nil || weekdayInt < 0 || weekdayInt > 6 {

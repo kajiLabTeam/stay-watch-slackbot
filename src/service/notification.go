@@ -68,7 +68,7 @@ func collectUserEventActivities(events []model.Event, targetWeekday time.Weekday
 
 // processEvent は1イベントの活動確率・推奨時間を計算し、EventActivityを返す
 func processEvent(event model.Event, targetWeekday time.Weekday) (EventActivity, []model.User, bool) {
-	probability, err := GetActivityProbability(event.ID, targetWeekday, "08:59")
+	probability, err := GetActivityProbability(event.ID, targetWeekday, "17:59")
 	if err != nil || probability < 0.30 {
 		return EventActivity{}, nil, false
 	}

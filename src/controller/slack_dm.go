@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/kajiLabTeam/stay-watch-slackbot/lib"
 	"github.com/kajiLabTeam/stay-watch-slackbot/model"
 	"github.com/kajiLabTeam/stay-watch-slackbot/service"
 	"github.com/slack-go/slack"
@@ -47,8 +48,7 @@ func SendDM(c *gin.Context) {
 
 func parseTargetWeekday(param string) (time.Weekday, error) {
 	if param == "" {
-		jst := time.FixedZone("JST", 9*60*60)
-		tomorrow := time.Now().In(jst).AddDate(0, 0, 1)
+		tomorrow := lib.NowJST().AddDate(0, 0, 1)
 		return tomorrow.Weekday(), nil
 	}
 	weekdayInt, err := strconv.Atoi(param)
@@ -102,8 +102,7 @@ func sendDMToUser(c *gin.Context, logger *log.Logger, user model.User, userMessa
 		return
 	}
 
-	jst := time.FixedZone("JST", 9*60*60)
-	now := time.Now().UTC().In(jst)
+	now := lib.NowJST()
 	logger.Printf("[%s] 送信先: %s (SlackID: %s)\n推奨活動内容:\n%s\n---\n",
 		now.Format("2006-01-02 15:04:05"),
 		user.Name,
