@@ -34,7 +34,7 @@ type RegisterStatusesRequest struct {
 type LogEntry struct {
 	EventID   uint   `json:"event_id" binding:"required"`
 	StatusID  uint   `json:"status_id" binding:"required"`
-	CreatedAt string `json:"created_at" binding:"required"` // RFC3339形式 JST (例: "2006-01-02T15:04:05+09:00")
+	EventTime string `json:"event_time" binding:"required"` // RFC3339形式 JST (例: "2006-01-02T15:04:05+09:00")
 }
 
 // RegisterLogsRequest はログ一括登録のリクエストボディ
@@ -307,7 +307,7 @@ func PostRegisterLogs(c *gin.Context) {
 		inputs[i] = service.LogEntryInput{
 			EventID:   entry.EventID,
 			StatusID:  entry.StatusID,
-			CreatedAt: entry.CreatedAt,
+			EventTime: entry.EventTime,
 		}
 	}
 

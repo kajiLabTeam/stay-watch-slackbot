@@ -29,12 +29,12 @@ func calculateWeeks(logs []model.Log) int {
 	}
 	oldestLog := logs[0]
 	for _, log := range logs {
-		if log.CreatedAt.Before(oldestLog.CreatedAt) {
+		if log.EventTime.Before(oldestLog.EventTime) {
 			oldestLog = log
 		}
 	}
 	now := lib.NowJST()
-	days := int(now.Sub(oldestLog.CreatedAt).Hours() / 24)
+	days := int(now.Sub(oldestLog.EventTime).Hours() / 24)
 	return (days / 7) + 1
 }
 
@@ -54,7 +54,7 @@ func GetActivityProbability(eventID uint, dayOfWeek time.Weekday, targetTime str
 	var datetimeStrings []string
 	for _, log := range logs {
 		if log.Status.Name == "start" {
-			datetimeStr := log.CreatedAt.Format("2006-01-02 15:04")
+			datetimeStr := log.EventTime.Format("2006-01-02 15:04")
 			datetimeStrings = append(datetimeStrings, datetimeStr)
 		}
 	}
@@ -85,7 +85,7 @@ func getActivityTimeRange(eventID uint, dayOfWeek time.Weekday) (ActivityTimeRan
 	var startTimes []string
 	var endTimes []string
 	for _, log := range logs {
-		timeStr := lib.FormatTime(log.CreatedAt)
+		timeStr := lib.FormatTime(log.EventTime)
 		switch log.Status.Name {
 		case "start":
 			startTimes = append(startTimes, timeStr)
@@ -163,7 +163,7 @@ func extractStartDatetimes(logs []model.Log) []string {
 	var datetimeStrings []string
 	for _, log := range logs {
 		if log.Status.Name == "start" {
-			datetimeStrings = append(datetimeStrings, log.CreatedAt.Format("2006-01-02 15:04"))
+			datetimeStrings = append(datetimeStrings, log.EventTime.Format("2006-01-02 15:04"))
 		}
 	}
 	return datetimeStrings

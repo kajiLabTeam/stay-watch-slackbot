@@ -2,6 +2,8 @@
 package model
 
 import (
+	"time"
+
 	"github.com/kajiLabTeam/stay-watch-slackbot/lib"
 	"gorm.io/gorm"
 )
@@ -58,11 +60,15 @@ type Correspond struct {
 
 // Log は活動ログを表す
 type Log struct {
-	gorm.Model
-	EventID  uint
-	Event    Event `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
-	StatusID uint
-	Status   Status `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
+	ID        uint           `gorm:"primarykey"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	DeletedAt gorm.DeletedAt `gorm:"index"`
+	EventTime time.Time
+	EventID   uint
+	Event     Event `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
+	StatusID  uint
+	Status    Status `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 }
 
 // UserDetail は来訪予測を含む詳細なユーザー情報を表す

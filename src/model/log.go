@@ -38,7 +38,7 @@ func (l *Log) ReadByEventID() ([]Log, error) {
 // ReadLogsByEventIDAndDateRange retrieves logs by event ID and date range
 func ReadLogsByEventIDAndDateRange(eventID uint, startDate, endDate time.Time) ([]Log, error) {
 	var logs []Log
-	if err := db.Where("event_id = ? AND logs.created_at BETWEEN ? AND ?", eventID, startDate, endDate).
+	if err := db.Where("event_id = ? AND logs.event_time BETWEEN ? AND ?", eventID, startDate, endDate).
 		Preload("Event").
 		Preload("Status").
 		Find(&logs).Error; err != nil {
@@ -55,7 +55,7 @@ func ReadLogsByEventIDAndDayOfWeek(eventID uint, dayOfWeek time.Weekday) ([]Log,
 	mysqlDayOfWeek := (int(dayOfWeek) + 6) % 7
 
 	// 指定した曜日のログを全て取得
-	if err := db.Where("event_id = ? AND WEEKDAY(logs.created_at) = ?", eventID, mysqlDayOfWeek).
+	if err := db.Where("event_id = ? AND WEEKDAY(logs.event_time) = ?", eventID, mysqlDayOfWeek).
 		Preload("Event").
 		Preload("Status").
 		Find(&logs).Error; err != nil {
@@ -73,7 +73,7 @@ func ReadLogsByEventIDAndDayOfWeekWithWeeks(eventID uint, dayOfWeek time.Weekday
 	mysqlDayOfWeek := (int(dayOfWeek) + 6) % 7
 
 	// 指定した曜日、指定した週数のログを全て取得
-	if err := db.Where("event_id = ? AND WEEKDAY(logs.created_at) = ?", eventID, mysqlDayOfWeek).
+	if err := db.Where("event_id = ? AND WEEKDAY(logs.event_time) = ?", eventID, mysqlDayOfWeek).
 		Preload("Event").
 		Preload("Status").
 		Find(&logs).Error; err != nil {

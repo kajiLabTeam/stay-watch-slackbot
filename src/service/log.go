@@ -11,7 +11,7 @@ import (
 type LogEntryInput struct {
 	EventID   uint
 	StatusID  uint
-	CreatedAt string // RFC3339形式 JST (例: "2006-01-02T15:04:05+09:00")
+	EventTime string // RFC3339形式 JST (例: "2006-01-02T15:04:05+09:00")
 }
 
 // RegisterLog は単一のログを登録する（JST検証付き）
@@ -31,17 +31,17 @@ func RegisterLog(input LogEntryInput) (model.Log, error) {
 	}
 
 	// 時刻をパース（JSTのみ許可）
-	createdAtJST, err := lib.ParseJST(input.CreatedAt)
+	eventTimeJST, err := lib.ParseJST(input.EventTime)
 	if err != nil {
-		return model.Log{}, fmt.Errorf("invalid created_at: %v", err)
+		return model.Log{}, fmt.Errorf("invalid event_time: %v", err)
 	}
 
 	// ログを作成
 	log := model.Log{
-		EventID:  input.EventID,
-		StatusID: input.StatusID,
+		EventID:   input.EventID,
+		StatusID:  input.StatusID,
+		EventTime: eventTimeJST,
 	}
-	log.CreatedAt = createdAtJST
 
 	if err := log.Create(); err != nil {
 		return model.Log{}, err
