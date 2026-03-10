@@ -232,6 +232,10 @@ func (gmm *GaussianMixture) BIC(data []float64) float64 {
 	return -2*ll + numParams*math.Log(n)
 }
 
+// nRestarts はクラスタリングの試行回数。複数回実行してBIC最良の結果を採用することで
+// K-means++のランダム初期化による結果のばらつきを抑える。
+const nRestarts = 10
+
 // Clustering データをクラスタリングする（元のPython実装と同等）
 func Clustering(data []int) []ClusteringResult {
 	// intをfloat64に変換
@@ -246,28 +250,22 @@ func Clustering(data []int) []ClusteringResult {
 		maxClusters = len(floatData)
 	}
 
-	var bicValues []float64
-	var gmms []*GaussianMixture
+	var bestGMM *GaussianMixture
+	bestBIC := math.Inf(1)
 
 	for nClusters := 1; nClusters <= maxClusters; nClusters++ {
-		gmm := NewGaussianMixture(nClusters)
-		gmm.Fit(floatData)
-		bicValues = append(bicValues, gmm.BIC(floatData))
-		gmms = append(gmms, gmm)
-	}
-
-	// 最小BICのクラスタ数を選択
-	optimalIdx := 0
-	minBIC := bicValues[0]
-	for i, bic := range bicValues {
-		if bic < minBIC {
-			minBIC = bic
-			optimalIdx = i
+		for trial := 0; trial < nRestarts; trial++ {
+			gmm := NewGaussianMixture(nClusters)
+			gmm.Fit(floatData)
+			bic := gmm.BIC(floatData)
+			if bic < bestBIC {
+				bestBIC = bic
+				bestGMM = gmm
+			}
 		}
 	}
 
-	optimalGMM := gmms[optimalIdx]
-	return makeResultsList(floatData, optimalGMM)
+	return makeResultsList(floatData, bestGMM)
 }
 
 // makeResultsList クラスタリング結果をリストに変換する
