@@ -385,17 +385,17 @@ const docTemplate = `{
         "controller.LogEntry": {
             "type": "object",
             "required": [
-                "created_at",
                 "event_id",
+                "event_time",
                 "status_id"
             ],
             "properties": {
-                "created_at": {
-                    "description": "RFC3339形式 JST (例: \"2006-01-02T15:04:05+09:00\")",
-                    "type": "string"
-                },
                 "event_id": {
                     "type": "integer"
+                },
+                "event_time": {
+                    "description": "RFC3339形式 JST (例: \"2006-01-02T15:04:05+09:00\")",
+                    "type": "string"
                 },
                 "status_id": {
                     "type": "integer"
