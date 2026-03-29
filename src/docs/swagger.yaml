@@ -89,6 +89,24 @@ paths:
       summary: 全活動の時間帯別発生確率を取得
       tags:
       - activities
+  /api/events:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Event一覧を取得
+      tags:
+      - events
   /api/events/{id}/probability:
     get:
       parameters:

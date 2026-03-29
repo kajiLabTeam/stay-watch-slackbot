@@ -42,6 +42,25 @@ type RegisterLogsRequest struct {
 	Logs []LogEntry `json:"logs" binding:"required,min=1"`
 }
 
+// GetEvents はEvent一覧を取得するAPIハンドラー
+// @Summary Event一覧を取得
+// @Tags events
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/events [get]
+func GetEvents(c *gin.Context) {
+	events, err := service.GetEvents()
+	if err != nil {
+		respondError(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data": events,
+	})
+}
+
 // GetTypes はType一覧を取得するAPIハンドラー
 // @Summary Type一覧を取得
 // @Tags types
