@@ -3,6 +3,8 @@ package router
 
 import (
 	"io"
+	"net"
+	"net/url"
 	"os"
 	"time"
 
@@ -27,6 +29,22 @@ func Router() {
 		AllowOrigins: []string{
 			"https://staywatch.kajilab.net",
 			"http://localhost:3000",
+		},
+		// ローカルネットワークからのアクセスを許可
+		AllowOriginFunc: func(origin string) bool {
+			u, err := url.Parse(origin)
+			if err != nil {
+				return false
+			}
+			host, _, err := net.SplitHostPort(u.Host)
+			if err != nil {
+				host = u.Host
+			}
+			ip := net.ParseIP(host)
+			if ip == nil {
+				return false
+			}
+			return ip.IsPrivate() || ip.IsLoopback()
 		},
 		// アクセスを許可したいHTTPメソッド
 		AllowMethods: []string{
