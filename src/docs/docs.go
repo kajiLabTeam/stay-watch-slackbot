@@ -418,7 +418,7 @@ const docTemplate = `{
             ],
             "properties": {
                 "event_id": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "event_time": {
                     "description": "RFC3339形式 JST (例: \"2006-01-02T15:04:05+09:00\")",
