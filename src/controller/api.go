@@ -32,7 +32,7 @@ type RegisterStatusesRequest struct {
 
 // LogEntry はログ登録リクエストの1エントリを表す
 type LogEntry struct {
-	EventID   uint   `json:"event_id" binding:"required"`
+	EventID   string `json:"event_id" binding:"required"`
 	StatusID  uint   `json:"status_id" binding:"required"`
 	EventTime string `json:"event_time" binding:"required"` // RFC3339形式 JST (例: "2006-01-02T15:04:05+09:00")
 }
@@ -323,8 +323,13 @@ func PostRegisterLogs(c *gin.Context) {
 	// リクエストをサービス層の入力形式に変換
 	inputs := make([]service.LogEntryInput, len(req.Logs))
 	for i, entry := range req.Logs {
+		eventID, err := strconv.ParseUint(entry.EventID, 10, 32)
+		if err != nil {
+			respondError(c, http.StatusBadRequest, "invalid event_id")
+			return
+		}
 		inputs[i] = service.LogEntryInput{
-			EventID:   entry.EventID,
+			EventID:   uint(eventID),
 			StatusID:  entry.StatusID,
 			EventTime: entry.EventTime,
 		}
