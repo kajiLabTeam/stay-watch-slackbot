@@ -7,25 +7,11 @@ import (
 	"github.com/kajiLabTeam/stay-watch-slackbot/model"
 )
 
-func RegisterEvent(name string, minNumber int, typeID uint, toolIDs []uint) (model.Event, error) {
+func RegisterEvent(name string, minNumber int, code string) (model.Event, error) {
 	event := model.Event{
 		Name:      name,
 		MinNumber: minNumber,
-		TypeID:    typeID,
-	}
-
-	// Toolsを取得してeventに関連付ける
-	if len(toolIDs) > 0 {
-		var tools []model.Tool
-		for _, id := range toolIDs {
-			tool := model.Tool{}
-			tool.ID = id
-			if err := tool.ReadByID(); err != nil {
-				return event, err
-			}
-			tools = append(tools, tool)
-		}
-		event.Tools = tools
+		Code:      code,
 	}
 
 	if err := event.Create(); err != nil {

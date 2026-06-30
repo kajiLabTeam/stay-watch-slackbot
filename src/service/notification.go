@@ -79,8 +79,8 @@ func processEvent(event model.Event, targetWeekday time.Weekday) (EventActivity,
 	}
 
 	var eventUsers []model.User
-	for _, c := range event.Corresponds {
-		eventUsers = append(eventUsers, c.User)
+	for _, eu := range event.EventUsers {
+		eventUsers = append(eventUsers, eu.User)
 	}
 	if len(eventUsers) == 0 {
 		return EventActivity{}, nil, false
