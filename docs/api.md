@@ -16,41 +16,21 @@ stay-watch-slackbotのREST APIドキュメント。
       - [パラメータ](#パラメータ)
       - [レスポンス (HTTP 201 Created)](#レスポンス-http-201-created)
       - [使用例](#使用例-1)
-  - [Type API](#type-api)
-    - [GET /api/types](#get-apitypes)
-      - [リクエスト](#リクエスト-2)
-      - [レスポンス (HTTP 200 OK)](#レスポンス-http-200-ok-1)
-      - [使用例](#使用例-2)
-    - [POST /api/types](#post-apitypes)
-      - [リクエスト](#リクエスト-3)
-      - [パラメータ](#パラメータ-1)
-      - [レスポンス (HTTP 201 Created)](#レスポンス-http-201-created-1)
-      - [使用例](#使用例-3)
-  - [Tool API](#tool-api)
-    - [GET /api/tools](#get-apitools)
-      - [リクエスト](#リクエスト-4)
-      - [レスポンス (HTTP 200 OK)](#レスポンス-http-200-ok-2)
-      - [使用例](#使用例-4)
-    - [POST /api/tools](#post-apitools)
-      - [リクエスト](#リクエスト-5)
-      - [パラメータ](#パラメータ-2)
-      - [レスポンス (HTTP 201 Created)](#レスポンス-http-201-created-2)
-      - [使用例](#使用例-5)
   - [Event API](#event-api)
     - [GET /api/events/{id}/probability](#get-apieventsidprobability)
-      - [リクエスト](#リクエスト-6)
-      - [パラメータ](#パラメータ-3)
-      - [レスポンス (HTTP 200 OK)](#レスポンス-http-200-ok-3)
-      - [使用例](#使用例-6)
+      - [リクエスト](#リクエスト-2)
+      - [パラメータ](#パラメータ-1)
+      - [レスポンス (HTTP 200 OK)](#レスポンス-http-200-ok-1)
+      - [使用例](#使用例-2)
   - [Log API](#log-api)
     - [POST /api/logs](#post-apilogs)
-      - [リクエスト](#リクエスト-7)
-      - [パラメータ](#パラメータ-4)
-      - [レスポンス (HTTP 201 Created)](#レスポンス-http-201-created-3)
+      - [リクエスト](#リクエスト-3)
+      - [パラメータ](#パラメータ-2)
+      - [レスポンス (HTTP 201 Created)](#レスポンス-http-201-created-1)
       - [部分成功時](#部分成功時)
       - [時刻の扱い](#時刻の扱い)
       - [バリデーション](#バリデーション)
-      - [使用例](#使用例-7)
+      - [使用例](#使用例-3)
 
 ---
 
@@ -150,164 +130,6 @@ curl -X POST http://localhost:8085/api/statuses \
 
 ---
 
-## Type API
-
-### GET /api/types
-
-タイプ一覧を取得する。
-
-#### リクエスト
-
-```sh
-GET /api/types
-```
-
-#### レスポンス (HTTP 200 OK)
-
-```json
-{
-  "data": [
-    {
-      "ID": 1,
-      "CreatedAt": "2025-01-01T00:00:00Z",
-      "UpdatedAt": "2025-01-01T00:00:00Z",
-      "DeletedAt": null,
-      "Name": "meeting"
-    }
-  ]
-}
-```
-
-#### 使用例
-
-```bash
-curl http://localhost:8085/api/types
-```
-
----
-
-### POST /api/types
-
-タイプを一括登録する。
-
-#### リクエスト
-
-```sh
-POST /api/types
-Content-Type: application/json
-```
-
-```json
-{
-  "names": ["meeting", "study", "work"]
-}
-```
-
-#### パラメータ
-
-| フィールド | 型 | 必須 | 説明 |
-| ----- | ----- | ----- | ----- |
-| names | string[] | Yes | タイプ名の配列（1件以上必須） |
-
-#### レスポンス (HTTP 201 Created)
-
-```json
-{
-  "message": "batch registration completed",
-  "data": [...],
-  "errors": {}
-}
-```
-
-#### 使用例
-
-```bash
-curl -X POST http://localhost:8085/api/types \
-  -H "Content-Type: application/json" \
-  -d '{"names": ["meeting", "study", "work"]}'
-```
-
----
-
-## Tool API
-
-### GET /api/tools
-
-ツール一覧を取得する。
-
-#### リクエスト
-
-```sh
-GET /api/tools
-```
-
-#### レスポンス (HTTP 200 OK)
-
-```json
-{
-  "data": [
-    {
-      "ID": 1,
-      "CreatedAt": "2025-01-01T00:00:00Z",
-      "UpdatedAt": "2025-01-01T00:00:00Z",
-      "DeletedAt": null,
-      "Name": "slack"
-    }
-  ]
-}
-```
-
-#### 使用例
-
-```bash
-curl http://localhost:8085/api/tools
-```
-
----
-
-### POST /api/tools
-
-ツールを一括登録する。
-
-#### リクエスト
-
-```sh
-POST /api/tools
-Content-Type: application/json
-```
-
-```json
-{
-  "names": ["slack", "discord", "teams"]
-}
-```
-
-#### パラメータ
-
-| フィールド | 型 | 必須 | 説明 |
-| ----- | ----- | ----- | ----- |
-| names | string[] | Yes | ツール名の配列（1件以上必須） |
-
-#### レスポンス (HTTP 201 Created)
-
-```json
-{
-  "message": "batch registration completed",
-  "data": [...],
-  "errors": {}
-}
-```
-
-#### 使用例
-
-```bash
-curl -X POST http://localhost:8085/api/tools \
-  -H "Content-Type: application/json" \
-  -d '{"names": ["slack", "discord", "teams"]}'
-```
-
----
-
 ## Event API
 
 ### GET /api/events/{id}/probability
@@ -364,14 +186,18 @@ Content-Type: application/json
 {
   "logs": [
     {
-      "event_id": 3,
+      "event_id": "0437ac48be2a81",
       "status_id": 1,
-      "created_at": "2025-11-24 17:40:26"
+      "event_time": "2025-11-24T17:40:26+09:00",
+      "room_users": [1001, 1002],
+      "participate_users": [1001]
     },
     {
-      "event_id": 3,
+      "event_id": "0437ac48be2a81",
       "status_id": 2,
-      "created_at": "2025-11-24 17:42:26"
+      "event_time": "2025-11-24T17:42:26+09:00",
+      "room_users": [],
+      "participate_users": []
     }
   ]
 }
@@ -382,9 +208,11 @@ Content-Type: application/json
 | フィールド | 型 | 必須 | 説明 |
 | ----- | ----- | ----- | ----- |
 | logs | array | Yes | ログエントリの配列（1件以上必須） |
-| logs[].event_id | uint | Yes | イベントID（events テーブルに存在する必要あり） |
+| logs[].event_id | string | Yes | イベント識別子（events.code に対応） |
 | logs[].status_id | uint | Yes | ステータスID（statuses テーブルに存在する必要あり） |
-| logs[].created_at | string | Yes | 作成日時（JST、形式: `YYYY-MM-DD HH:MM:SS`） |
+| logs[].event_time | string | Yes | イベント発生日時（JST、RFC3339形式: `2006-01-02T15:04:05+09:00`） |
+| logs[].room_users | int64[] | No | 在室メンバの stay_watch_id の配列（省略可） |
+| logs[].participate_users | int64[] | No | 参加メンバの stay_watch_id の配列（省略可） |
 
 #### レスポンス (HTTP 201 Created)
 
@@ -394,9 +222,10 @@ Content-Type: application/json
   "data": [
     {
       "ID": 1,
-      "CreatedAt": "2025-11-24T08:40:26Z",
-      "UpdatedAt": "2025-11-24T08:40:26Z",
+      "CreatedAt": "2025-11-24T17:40:26+09:00",
+      "UpdatedAt": "2025-11-24T17:40:26+09:00",
       "DeletedAt": null,
+      "EventTime": "2025-11-24T17:40:26+09:00",
       "EventID": 3,
       "Event": {},
       "StatusID": 1,
@@ -441,9 +270,10 @@ Content-Type: application/json
 
 #### バリデーション
 
-1. `event_id` がeventsテーブルに存在すること
-2. `status_id` がstatusesテーブルに存在すること
-3. `created_at` が `YYYY-MM-DD HH:MM:SS` 形式であること
+1. `event_id` が events テーブルの `code` カラムに存在すること
+2. `status_id` が statuses テーブルに存在すること
+3. `event_time` が RFC3339 形式（`+09:00` など UTC オフセット付き）であること
+4. `room_users`・`participate_users` の各 stay_watch_id が users テーブルに存在すること
 
 #### 使用例
 
@@ -452,8 +282,20 @@ curl -X POST http://localhost:8085/api/logs \
   -H "Content-Type: application/json" \
   -d '{
     "logs": [
-      {"event_id": 2, "status_id": 1, "created_at": "2025-11-24 17:40:26"},
-      {"event_id": 2, "status_id": 2, "created_at": "2025-11-24 17:42:26"}
+      {
+        "event_id": "0437ac48be2a81",
+        "status_id": 1,
+        "event_time": "2025-11-24T17:40:26+09:00",
+        "room_users": [1001, 1002],
+        "participate_users": [1001]
+      },
+      {
+        "event_id": "0437ac48be2a81",
+        "status_id": 2,
+        "event_time": "2025-11-24T17:42:26+09:00",
+        "room_users": [],
+        "participate_users": []
+      }
     ]
   }'
 ```
