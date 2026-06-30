@@ -2,6 +2,7 @@
 package model
 
 import (
+	"log"
 	"time"
 
 	"github.com/kajiLabTeam/stay-watch-slackbot/lib"
@@ -36,10 +37,10 @@ type Event struct {
 // EventUser は Event と User の関係を表す中間テーブル
 type EventUser struct {
 	gorm.Model
-	EventID uint
+	EventID uint  `gorm:"uniqueIndex:idx_event_users_event_user"`
 	Event   Event `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
-	UserID  uint
-	User    User `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
+	UserID  uint  `gorm:"uniqueIndex:idx_event_users_event_user"`
+	User    User  `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 }
 
 // Log は活動ログを表す
@@ -87,5 +88,7 @@ var db *gorm.DB
 
 func init() {
 	db = lib.SQLConnect()
-	_ = db.AutoMigrate(&User{}, &Status{}, &Event{}, &EventUser{}, &Log{}, &LogsUserRoom{}, &LogsUserParticipate{})
+	if err := db.AutoMigrate(&User{}, &Status{}, &Event{}, &EventUser{}, &Log{}, &LogsUserRoom{}, &LogsUserParticipate{}); err != nil {
+		log.Fatalf("AutoMigrate failed: %v", err)
+	}
 }
