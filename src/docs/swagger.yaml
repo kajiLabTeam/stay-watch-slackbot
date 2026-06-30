@@ -7,6 +7,16 @@ definitions:
       event_time:
         description: 'RFC3339形式 JST (例: "2006-01-02T15:04:05+09:00")'
         type: string
+      participate_users:
+        description: 参加メンバの stay_watch_id（空可）
+        items:
+          type: integer
+        type: array
+      room_users:
+        description: 在室メンバの stay_watch_id（空可）
+        items:
+          type: integer
+        type: array
       status_id:
         type: integer
     required:
@@ -25,26 +35,6 @@ definitions:
     - logs
     type: object
   controller.RegisterStatusesRequest:
-    properties:
-      names:
-        items:
-          type: string
-        minItems: 1
-        type: array
-    required:
-    - names
-    type: object
-  controller.RegisterToolsRequest:
-    properties:
-      names:
-        items:
-          type: string
-        minItems: 1
-        type: array
-    required:
-    - names
-    type: object
-  controller.RegisterTypesRequest:
     properties:
       names:
         items:
@@ -226,102 +216,4 @@ paths:
       summary: Statusを一括登録
       tags:
       - statuses
-  /api/tools:
-    get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties: true
-            type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            additionalProperties: true
-            type: object
-      summary: Tool一覧を取得
-      tags:
-      - tools
-    post:
-      consumes:
-      - application/json
-      parameters:
-      - description: 登録するTool名のリスト
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/controller.RegisterToolsRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties: true
-            type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            additionalProperties: true
-            type: object
-      summary: Toolを一括登録
-      tags:
-      - tools
-  /api/types:
-    get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties: true
-            type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            additionalProperties: true
-            type: object
-      summary: Type一覧を取得
-      tags:
-      - types
-    post:
-      consumes:
-      - application/json
-      parameters:
-      - description: 登録するType名のリスト
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/controller.RegisterTypesRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties: true
-            type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            additionalProperties: true
-            type: object
-      summary: Typeを一括登録
-      tags:
-      - types
 swagger: "2.0"

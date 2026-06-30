@@ -248,6 +248,8 @@ curl http://localhost:8085/notification
 
 ## データベース構造
 
+ER 図とフルスペックは [`docs/db_schema.md`](docs/db_schema.md) および [`docs/活動収集db設計.drawio`](docs/活動収集db設計.drawio) を参照。本節は概要のみ。
+
 ### Userテーブル
 
 | カラム | 型 | 説明 |
@@ -256,7 +258,7 @@ curl http://localhost:8085/notification
 | Name | string | ユーザー名 |
 | SlackID | string | SlackユーザーID |
 | StayWatchID | int64 | StayWatchユーザーID |
-| Corresponds | []Correspond | ユーザーが参加するイベント |
+| EventUsers | []EventUser | ユーザーが参加するイベント |
 
 ### Eventテーブル
 
@@ -264,37 +266,19 @@ curl http://localhost:8085/notification
 | --------- | ----- | ------ |
 | ID | uint | 主キー（gorm.Model） |
 | Name | string | イベント名（スマブラ、カタンなど） |
+| Code | string | イベントを一意に定める識別子（例: 1, 0437ac48be2a81） |
 | MinNumber | int | 最低必要人数（デフォルト: 2） |
-| TypeID | uint | イベントタイプID（外部キー） |
-| Type | Type | イベントタイプ |
-| Tools | []Tool | 使用するツール（多対多） |
-| Corresponds | []Correspond | イベント参加者 |
+| EventUsers | []EventUser | イベント参加者 |
 
-### Typeテーブル
+### EventUserテーブル
 
-| カラム | 型 | 説明 |
-| --------- | ----- | ------ |
-| ID | uint | 主キー（gorm.Model） |
-| Name | string | イベントタイプ名 |
-| Events | []Event | このタイプに属するイベント |
-
-### Toolテーブル
-
-| カラム | 型 | 説明 |
-| --------- | ----- | ------ |
-| ID | uint | 主キー（gorm.Model） |
-| Name | string | ツール名 |
-| Events | []Event | このツールを使用するイベント（多対多） |
-
-### Correspondテーブル
+Event ↔ User の中間テーブル。
 
 | カラム | 型 | 説明 |
 | --------- | ----- | ------ |
 | ID | uint | 主キー（gorm.Model） |
 | EventID | uint | イベントID（外部キー） |
-| Event | Event | イベント |
 | UserID | uint | ユーザーID（外部キー） |
-| User | User | ユーザー |
 
 ### Statusテーブル
 
@@ -309,18 +293,29 @@ curl http://localhost:8085/notification
 | カラム | 型 | 説明 |
 | --------- | ----- | ------ |
 | ID | uint | 主キー（gorm.Model） |
+| EventTime | time.Time | 活動発生時刻（JST） |
 | EventID | uint | イベントID（外部キー） |
-| Event | Event | イベント |
 | StatusID | uint | ステータスID（外部キー） |
-| Status | Status | ステータス |
+| RoomUsers | []User | 在室ユーザー（多対多） |
+| ParticipateUsers | []User | 参加ユーザー（多対多） |
+
+### LogsUserRoom / LogsUserParticipate テーブル
+
+Log ↔ User の中間テーブル。`LogsUserRoom` は在室ユーザー、`LogsUserParticipate` は参加ユーザーを表す。
+
+| カラム | 型 | 説明 |
+| --------- | ----- | ------ |
+| ID | uint | 主キー（gorm.Model） |
+| LogID | uint | ログID（外部キー） |
+| UserID | uint | ユーザーID（外部キー） |
 
 ### リレーション
 
-- **User ↔ Event**: 多対多（Correspondテーブルで関連付け）
-- **Event ↔ Type**: 多対1（EventはTypeに属する）
-- **Event ↔ Tool**: 多対多（event_toolsテーブルで関連付け）
+- **User ↔ Event**: 多対多（`event_users` テーブルで関連付け）
 - **Event ↔ Log**: 1対多（Eventは複数のLogを持つ）
 - **Status ↔ Log**: 1対多（Statusは複数のLogを持つ）
+- **Log ↔ User (在室)**: 多対多（`logs_user_rooms` テーブルで関連付け）
+- **Log ↔ User (参加)**: 多対多（`logs_user_participates` テーブルで関連付け）
 
 ## 開発
 
@@ -445,7 +440,9 @@ stay-watch-slackbot/
     │   ├── slack_event.go
     │   ├── user.go
     │   ├── event.go
-    │   ├── correspond.go
+    │   ├── event_user.go
+    │   ├── log.go
+    │   ├── status.go
     │   ├── staywatch.go
     │   ├── activity.go      # 活動履歴管理
     │   ├── notification.go  # 通知処理
@@ -454,11 +451,9 @@ stay-watch-slackbot/
     │   ├── struct.go        # 全モデル定義
     │   ├── user.go
     │   ├── event.go
-    │   ├── correspond.go
+    │   ├── event_user.go
     │   ├── log.go
-    │   ├── status.go
-    │   ├── tool.go
-    │   └── types.go
+    │   └── status.go
     ├── prediction/          # 予測アルゴリズム
     │   ├── clustering.go    # クラスタリング
     │   └── probability.go   # 確率計算
