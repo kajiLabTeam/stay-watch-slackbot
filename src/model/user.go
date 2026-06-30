@@ -47,7 +47,7 @@ func (u *User) ReadByStayWatchIDs(ids []int64) ([]User, error) {
 
 func (u *User) ReadAll() ([]User, error) {
 	var users []User
-	if err := db.Preload("Corresponds").Find(&users).Error; err != nil {
+	if err := db.Preload("EventUsers").Find(&users).Error; err != nil {
 		return nil, err
 	}
 	return users, nil

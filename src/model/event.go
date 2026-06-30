@@ -8,14 +8,14 @@ func (e *Event) Create() error {
 }
 
 func (e *Event) ReadByID() error {
-	if err := db.Preload("Type").Preload("Tools").First(e, e.ID).Error; err != nil {
+	if err := db.First(e, e.ID).Error; err != nil {
 		return err
 	}
 	return nil
 }
 
 func (e *Event) ReadByName() error {
-	if err := db.Preload("Type").Preload("Tools").Where("name = ?", e.Name).First(e).Error; err != nil {
+	if err := db.Where("name = ?", e.Name).First(e).Error; err != nil {
 		return err
 	}
 	return nil
@@ -23,17 +23,17 @@ func (e *Event) ReadByName() error {
 
 func (e *Event) ReadAll() ([]Event, error) {
 	var events []Event
-	if err := db.Preload("Type").Preload("Tools").Find(&events).Error; err != nil {
+	if err := db.Find(&events).Error; err != nil {
 		return events, err
 	}
 	return events, nil
 }
 
-// ReadAllWithUsers は全イベントを Corresponds と User を含めて取得する
+// ReadAllWithUsers は全イベントを EventUsers と User を含めて取得する
 // NotifyByEvent などで N+1 クエリ問題を回避するために使用
 func (e *Event) ReadAllWithUsers() ([]Event, error) {
 	var events []Event
-	if err := db.Preload("Type").Preload("Tools").Preload("Corresponds.User").Find(&events).Error; err != nil {
+	if err := db.Preload("EventUsers.User").Find(&events).Error; err != nil {
 		return events, err
 	}
 	return events, nil
@@ -71,9 +71,9 @@ func GroupByEvent(users []User) ([]EventGroup, error) {
 		userIDs = append(userIDs, user.ID)
 	}
 
-	// ステップ2: バッチで全 corresponds を取得（N+1 クエリ問題を回避）
-	var c Correspond
-	corresponds, err := c.ReadByUserIDs(userIDs)
+	// ステップ2: バッチで全 event_users を取得（N+1 クエリ問題を回避）
+	var eu EventUser
+	eventUsers, err := eu.ReadByUserIDs(userIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -88,15 +88,15 @@ func GroupByEvent(users []User) ([]EventGroup, error) {
 	}
 
 	// イベントごとにグループ化
-	for _, correspond := range corresponds {
-		if _, exists := eventMap[correspond.EventID]; !exists {
-			eventMap[correspond.EventID] = &EventGroup{
-				Event: correspond.Event,
+	for _, eventUser := range eventUsers {
+		if _, exists := eventMap[eventUser.EventID]; !exists {
+			eventMap[eventUser.EventID] = &EventGroup{
+				Event: eventUser.Event,
 				Users: []User{},
 			}
 		}
-		if user, found := userMap[correspond.UserID]; found {
-			eventMap[correspond.EventID].Users = append(eventMap[correspond.EventID].Users, user)
+		if user, found := userMap[eventUser.UserID]; found {
+			eventMap[eventUser.EventID].Users = append(eventMap[eventUser.EventID].Users, user)
 		}
 	}
 

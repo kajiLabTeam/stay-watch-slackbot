@@ -14,7 +14,7 @@ type User struct {
 	Name        string
 	SlackID     string
 	StayWatchID int64
-	Corresponds []Correspond `gorm:"foreignKey:UserID"`
+	EventUsers  []EventUser `gorm:"foreignKey:UserID"`
 }
 
 // Status は活動のステータス（start, end, pose）を表す
@@ -24,33 +24,17 @@ type Status struct {
 	Logs []Log  `gorm:"foreignKey:StatusID"`
 }
 
-// Type はイベントのタイプを表す
-type Type struct {
-	gorm.Model
-	Name   string  `gorm:"type:varchar(255);uniqueIndex;not null"`
-	Events []Event `gorm:"foreignKey:TypeID"`
-}
-
-// Tool はイベントで使用されるツールを表す
-type Tool struct {
-	gorm.Model
-	Name   string  `gorm:"type:varchar(255);uniqueIndex;not null"`
-	Events []Event `gorm:"many2many:event_tools;"`
-}
-
 // Event は活動イベントを表す
 type Event struct {
 	gorm.Model
-	Name        string `gorm:"type:varchar(255);uniqueIndex;not null"` // スケジュール、人生ゲーム、入退室、勉強会、ミーティング、作業中
-	MinNumber   int    `gorm:"default:2"`                              // 最低必要人数
-	TypeID      uint
-	Type        Type         `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
-	Tools       []Tool       `gorm:"many2many:event_tools;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
-	Corresponds []Correspond `gorm:"foreignKey:EventID"`
+	Name       string `gorm:"type:varchar(255);uniqueIndex;not null"` // スマブラ、人生ゲーム など
+	Code       string `gorm:"type:varchar(255);uniqueIndex;not null"` // イベントを一意に定める識別子（例: 1, 2, 0437ac48be2a81）
+	MinNumber  int    `gorm:"default:2"`                              // 最低必要人数
+	EventUsers []EventUser `gorm:"foreignKey:EventID"`
 }
 
-// Correspond はEventとUserの関係を表す
-type Correspond struct {
+// EventUser は Event と User の関係を表す中間テーブル
+type EventUser struct {
 	gorm.Model
 	EventID uint
 	Event   Event `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
@@ -60,15 +44,35 @@ type Correspond struct {
 
 // Log は活動ログを表す
 type Log struct {
-	ID        uint           `gorm:"primarykey"`
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	DeletedAt gorm.DeletedAt `gorm:"index"`
-	EventTime time.Time
-	EventID   uint
-	Event     Event `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
-	StatusID  uint
-	Status    Status `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
+	ID               uint `gorm:"primarykey"`
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+	DeletedAt        gorm.DeletedAt `gorm:"index"`
+	EventTime        time.Time
+	EventID          uint
+	Event            Event `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
+	StatusID         uint
+	Status           Status `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
+	RoomUsers        []User `gorm:"many2many:logs_user_rooms;"`
+	ParticipateUsers []User `gorm:"many2many:logs_user_participates;"`
+}
+
+// LogsUserRoom は Log と User の中間テーブル（在室ユーザー）
+type LogsUserRoom struct {
+	gorm.Model
+	LogID  uint
+	Log    Log `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
+	UserID uint
+	User   User `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
+}
+
+// LogsUserParticipate は Log と User の中間テーブル（参加ユーザー）
+type LogsUserParticipate struct {
+	gorm.Model
+	LogID  uint
+	Log    Log `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
+	UserID uint
+	User   User `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 }
 
 // UserDetail は来訪予測を含む詳細なユーザー情報を表す
@@ -83,5 +87,5 @@ var db *gorm.DB
 
 func init() {
 	db = lib.SQLConnect()
-	_ = db.AutoMigrate(&User{}, &Status{}, &Type{}, &Tool{}, &Event{}, &Correspond{}, &Log{})
+	_ = db.AutoMigrate(&User{}, &Status{}, &Event{}, &EventUser{}, &Log{}, &LogsUserRoom{}, &LogsUserParticipate{})
 }
