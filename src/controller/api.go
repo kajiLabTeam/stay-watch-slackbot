@@ -243,3 +243,17 @@ func PostRegisterLogs(c *gin.Context) {
 		"errors":  errors,
 	})
 }
+
+// PostRefreshUserIcons は全ユーザのアイコンURLをSlackから取得し直してDBを更新するAPIハンドラー
+func PostRefreshUserIcons(c *gin.Context) {
+	updated, err := service.RefreshAllUserIcons()
+	if err != nil {
+		respondError(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "icon URLs refreshed",
+		"updated": updated,
+	})
+}

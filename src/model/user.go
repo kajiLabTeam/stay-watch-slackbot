@@ -52,3 +52,7 @@ func (u *User) ReadAll() ([]User, error) {
 	}
 	return users, nil
 }
+
+func (u *User) UpdateIconURL() error {
+	return db.Model(u).Update("icon_url", u.IconURL).Error
+}

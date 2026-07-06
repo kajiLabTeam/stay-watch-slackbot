@@ -4,6 +4,7 @@ import (
 	"os"
 
 	"github.com/kajiLabTeam/stay-watch-slackbot/lib"
+	"github.com/slack-go/slack"
 )
 
 func getEnv(key, defaultValue string) string {
@@ -60,6 +61,7 @@ type Prediction struct {
 var (
 	staywatch       StayWatch
 	stayWatchClient *lib.StayWatchClient
+	slackClient     *slack.Client
 )
 
 func init() {
@@ -69,6 +71,6 @@ func init() {
 	staywatch.Time = getEnv("STAYWATCH_TIME_PATH", "")
 	staywatch.APIKey = getEnv("STAYWATCH_API_KEY", "")
 
-	// StayWatch API クライアントを初期化
 	stayWatchClient = lib.NewStayWatchClient(staywatch.APIKey)
+	slackClient = slack.New(getEnv("SLACK_BOT_USER_OAUTH_TOKEN", ""))
 }

@@ -15,6 +15,7 @@ type User struct {
 	Name        string
 	SlackID     string
 	StayWatchID int64
+	IconURL     string
 	EventUsers  []EventUser `gorm:"foreignKey:UserID"`
 }
 
