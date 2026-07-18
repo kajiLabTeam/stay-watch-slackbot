@@ -44,6 +44,71 @@ definitions:
     required:
     - names
     type: object
+  service.BoardActivity:
+    properties:
+      headcount:
+        type: integer
+      likelihood:
+        description: '"high" | "mid" | "low"'
+        type: string
+      name:
+        type: string
+    type: object
+  service.BoardData:
+    properties:
+      currentTime:
+        type: string
+      presence:
+        $ref: '#/definitions/service.BoardPresence'
+      timeBlocks:
+        items:
+          $ref: '#/definitions/service.BoardTimeBlock'
+        type: array
+    type: object
+  service.BoardPerson:
+    properties:
+      arrival:
+        description: '"likely" | "maybe"'
+        type: string
+      avatarUrl:
+        type: string
+      name:
+        type: string
+    type: object
+  service.BoardPresence:
+    properties:
+      members:
+        items:
+          $ref: '#/definitions/service.BoardPresentMember'
+        type: array
+    type: object
+  service.BoardPresentMember:
+    properties:
+      avatarUrl:
+        type: string
+      name:
+        type: string
+    type: object
+  service.BoardTimeBlock:
+    properties:
+      activities:
+        items:
+          $ref: '#/definitions/service.BoardActivity'
+        type: array
+      id:
+        description: '"noon" | "evening" | "night"'
+        type: string
+      isNow:
+        type: boolean
+      label:
+        type: string
+      people:
+        items:
+          $ref: '#/definitions/service.BoardPerson'
+        type: array
+      range:
+        type: string
+    type: object
 host: localhost:8085
 info:
   contact: {}
@@ -79,6 +144,23 @@ paths:
       summary: 全活動の時間帯別発生確率を取得
       tags:
       - activities
+  /api/board:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/service.BoardData'
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 共有モニター用の表示データを取得
+      tags:
+      - board
   /api/events:
     get:
       produces:
