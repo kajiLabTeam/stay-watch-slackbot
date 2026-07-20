@@ -57,6 +57,32 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/board": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "board"
+                ],
+                "summary": "共有モニター用の表示データを取得",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/service.BoardData"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/api/events": {
             "get": {
                 "produces": [
@@ -324,6 +350,105 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                }
+            }
+        },
+        "service.BoardActivity": {
+            "type": "object",
+            "properties": {
+                "headcount": {
+                    "type": "integer"
+                },
+                "likelihood": {
+                    "description": "\"high\" | \"mid\" | \"low\"",
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "service.BoardData": {
+            "type": "object",
+            "properties": {
+                "currentTime": {
+                    "type": "string"
+                },
+                "presence": {
+                    "$ref": "#/definitions/service.BoardPresence"
+                },
+                "timeBlocks": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/service.BoardTimeBlock"
+                    }
+                }
+            }
+        },
+        "service.BoardPerson": {
+            "type": "object",
+            "properties": {
+                "arrival": {
+                    "description": "\"likely\" | \"maybe\"",
+                    "type": "string"
+                },
+                "avatarUrl": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "service.BoardPresence": {
+            "type": "object",
+            "properties": {
+                "members": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/service.BoardPresentMember"
+                    }
+                }
+            }
+        },
+        "service.BoardPresentMember": {
+            "type": "object",
+            "properties": {
+                "avatarUrl": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "service.BoardTimeBlock": {
+            "type": "object",
+            "properties": {
+                "activities": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/service.BoardActivity"
+                    }
+                },
+                "id": {
+                    "description": "\"noon\" | \"evening\" | \"night\"",
+                    "type": "string"
+                },
+                "isNow": {
+                    "type": "boolean"
+                },
+                "label": {
+                    "type": "string"
+                },
+                "people": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/service.BoardPerson"
+                    }
+                },
+                "range": {
+                    "type": "string"
                 }
             }
         }

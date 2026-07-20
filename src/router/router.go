@@ -70,6 +70,7 @@ func Router() {
 		AllowOrigins: []string{
 			"https://staywatch.kajilab.net",
 			"http://localhost:3000",
+			"http://localhost:5173",
 		},
 		// 研究室LAN(192.168.100.0/23)とループバックからのアクセスを許可
 		AllowOriginFunc: func(origin string) bool {
@@ -125,6 +126,7 @@ func Router() {
 	r.GET("/api/activities/probabilities", controller.GetAllActivityProbabilities)
 	r.POST("/api/logs", controller.PostRegisterLogs)
 	r.POST("/api/users/icons/refresh", controller.PostRefreshUserIcons)
+	r.GET("/api/board", controller.GetBoard)
 
 	_ = r.Run(":8085")
 }
