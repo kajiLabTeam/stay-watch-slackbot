@@ -2,8 +2,10 @@
 package router
 
 import (
+	"fmt"
 	"io"
 	"net"
+	"net/http"
 	"net/url"
 	"os"
 	"time"
@@ -16,12 +18,42 @@ import (
 	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
+// errorOnlyLogger はステータスコードが400以上のリクエストのみをwに記録するミドルウェア
+func errorOnlyLogger(w io.Writer) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		start := time.Now()
+		path := c.Request.URL.Path
+		if raw := c.Request.URL.RawQuery; raw != "" {
+			path = path + "?" + raw
+		}
+
+		c.Next()
+
+		status := c.Writer.Status()
+		if status < http.StatusBadRequest {
+			return
+		}
+
+		fmt.Fprintf(w, "[GIN] %s | %3d | %13v | %15s | %-7s %s\n",
+			time.Now().Format("2006/01/02 - 15:04:05"),
+			status,
+			time.Since(start),
+			c.ClientIP(),
+			c.Request.Method,
+			path,
+		)
+	}
+}
+
 func Router() {
 	gin.DisableConsoleColor()
 	f, _ := os.Create("../log/server.log")
 	gin.DefaultWriter = io.MultiWriter(f)
+	gin.DefaultErrorWriter = io.MultiWriter(f)
 
-	r := gin.Default()
+	r := gin.New()
+	r.Use(gin.Recovery())
+	r.Use(errorOnlyLogger(gin.DefaultWriter))
 	_ = r.SetTrustedProxies([]string{"127.0.0.1"})
 
 	r.Use(cors.New(cors.Config{
