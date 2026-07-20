@@ -244,6 +244,23 @@ func PostRegisterLogs(c *gin.Context) {
 	})
 }
 
+// GetBoard は共有モニター(moment-board)用の集約表示データを取得するAPIハンドラー
+// @Summary 共有モニター用の表示データを取得
+// @Tags board
+// @Produce json
+// @Success 200 {object} service.BoardData
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/board [get]
+func GetBoard(c *gin.Context) {
+	board, err := service.GetBoardData()
+	if err != nil {
+		respondError(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	c.JSON(http.StatusOK, board)
+}
+
 // PostRefreshUserIcons は全ユーザのアイコンURLをSlackから取得し直してDBを更新するAPIハンドラー
 func PostRefreshUserIcons(c *gin.Context) {
 	updated, err := service.RefreshAllUserIcons()
