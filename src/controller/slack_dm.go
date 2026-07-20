@@ -58,10 +58,10 @@ func parseTargetWeekday(param string) (time.Weekday, error) {
 	return time.Weekday((weekdayInt + 1) % 7), nil
 }
 
-func buildMessageForUser(eventMessages map[int][]string, corresponds []model.Correspond) string {
+func buildMessageForUser(eventMessages map[int][]string, eventUsers []model.EventUser) string {
 	var b strings.Builder
-	for _, co := range corresponds {
-		m, ok := eventMessages[int(co.EventID)]
+	for _, eu := range eventUsers {
+		m, ok := eventMessages[int(eu.EventID)]
 		if !ok {
 			continue
 		}
@@ -78,7 +78,7 @@ func sendDMToUser(c *gin.Context, logger *log.Logger, user model.User, userMessa
 	if !hasMessages || len(eventMessages) == 0 {
 		return
 	}
-	if len(user.Corresponds) == 0 {
+	if len(user.EventUsers) == 0 {
 		return
 	}
 
@@ -91,7 +91,7 @@ func sendDMToUser(c *gin.Context, logger *log.Logger, user model.User, userMessa
 		return
 	}
 
-	message := buildMessageForUser(eventMessages, user.Corresponds)
+	message := buildMessageForUser(eventMessages, user.EventUsers)
 	if message == "" {
 		return
 	}

@@ -96,6 +96,7 @@ func handleRegisterEvent(c *gin.Context, interaction slack.InteractionCallback) 
 	values := interaction.View.State.Values
 	responseURL := interaction.View.PrivateMetadata
 	name := values["name_block"]["name_input"].Value
+	code := values["code_block"]["code_input"].Value
 	numStr := values["number_block"]["number_input"].Value
 
 	numInt, err := strconv.Atoi(numStr)
@@ -104,17 +105,7 @@ func handleRegisterEvent(c *gin.Context, interaction slack.InteractionCallback) 
 		return
 	}
 
-	typeID := parseTypeID(c, values)
-	if typeID == nil {
-		return
-	}
-
-	toolIDs := parseToolIDs(c, values)
-	if toolIDs == nil {
-		return
-	}
-
-	if _, err := service.RegisterEvent(name, numInt, *typeID, toolIDs); err != nil {
+	if _, err := service.RegisterEvent(name, numInt, code); err != nil {
 		if err.Error() == "event already exists" {
 			_, _, _ = api.PostMessage("", slack.MsgOptionReplaceOriginal(responseURL), slack.MsgOptionText("登録済みのイベントです", false))
 			return
@@ -127,53 +118,13 @@ func handleRegisterEvent(c *gin.Context, interaction slack.InteractionCallback) 
 	c.JSON(http.StatusOK, gin.H{})
 }
 
-func parseTypeID(c *gin.Context, values map[string]map[string]slack.BlockAction) *uint {
-	var typeID uint
-	typeBlock, ok := values["type_block"]
-	if !ok {
-		return &typeID
-	}
-	typeSelect, ok := typeBlock["type_select"]
-	if !ok || typeSelect.SelectedOption.Value == "" {
-		return &typeID
-	}
-	typeIDInt, err := strconv.Atoi(typeSelect.SelectedOption.Value)
-	if err != nil {
-		respondError(c, http.StatusBadRequest, "type id must be an integer")
-		return nil
-	}
-	typeID = uint(typeIDInt)
-	return &typeID
-}
-
-func parseToolIDs(c *gin.Context, values map[string]map[string]slack.BlockAction) []uint {
-	var toolIDs []uint
-	toolBlock, ok := values["tool_block"]
-	if !ok {
-		return toolIDs
-	}
-	toolCheckbox, ok := toolBlock["tool_checkbox"]
-	if !ok {
-		return toolIDs
-	}
-	for _, opt := range toolCheckbox.SelectedOptions {
-		toolIDInt, err := strconv.Atoi(opt.Value)
-		if err != nil {
-			respondError(c, http.StatusBadRequest, "tool id must be an integer")
-			return nil
-		}
-		toolIDs = append(toolIDs, uint(toolIDInt))
-	}
-	return toolIDs
-}
-
 func handleSelectEvents(c *gin.Context, interaction slack.InteractionCallback) {
 	slackUserID := interaction.User.ID
 	responseURL := interaction.View.PrivateMetadata
 	options := interaction.View.State.Values["event_select_block"]["event_checkbox"].SelectedOptions
 
 	for _, opt := range options {
-		_, _ = service.RegisterCorrespond(opt.Text.Text, slackUserID)
+		_, _ = service.RegisterEventUser(opt.Text.Text, slackUserID)
 	}
 
 	_, _, _ = api.PostMessage("", slack.MsgOptionReplaceOriginal(responseURL), slack.MsgOptionText("登録が完了しました。", false))

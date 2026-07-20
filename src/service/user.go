@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"log"
 
 	"github.com/kajiLabTeam/stay-watch-slackbot/model"
 )
@@ -34,9 +35,53 @@ func RegisterUser(slackUserID string, userName string) (model.User, error) {
 			return user, err
 		}
 	}
-	// DBにユーザ情報を登録
 	if err := user.Create(); err != nil {
 		return user, err
 	}
+
+	// アイコンURLをSlackから取得してDBに保存（失敗しても登録自体は成功とする）
+	if iconURL, err := fetchSlackIconURL(slackUserID); err == nil {
+		user.IconURL = iconURL
+		if err := user.UpdateIconURL(); err != nil {
+			log.Printf("failed to save icon_url for user %s: %v", slackUserID, err)
+		}
+	} else {
+		log.Printf("failed to fetch icon URL for user %s: %v", slackUserID, err)
+	}
+
 	return user, nil
+}
+
+// fetchSlackIconURL は Slack API からユーザのアイコン画像 URL を取得する
+func fetchSlackIconURL(slackUserID string) (string, error) {
+	slackUser, err := slackClient.GetUserInfo(slackUserID)
+	if err != nil {
+		return "", err
+	}
+	return slackUser.Profile.Image192, nil
+}
+
+// RefreshAllUserIcons は全ユーザのアイコン URL を Slack から取得し直してDBを更新する
+func RefreshAllUserIcons() (int, error) {
+	u := model.User{}
+	users, err := u.ReadAll()
+	if err != nil {
+		return 0, err
+	}
+
+	updated := 0
+	for i := range users {
+		iconURL, err := fetchSlackIconURL(users[i].SlackID)
+		if err != nil {
+			log.Printf("failed to fetch icon URL for user %s: %v", users[i].SlackID, err)
+			continue
+		}
+		users[i].IconURL = iconURL
+		if err := users[i].UpdateIconURL(); err != nil {
+			log.Printf("failed to update icon_url for user %s: %v", users[i].SlackID, err)
+			continue
+		}
+		updated++
+	}
+	return updated, nil
 }

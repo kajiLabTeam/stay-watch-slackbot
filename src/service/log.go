@@ -9,9 +9,42 @@ import (
 
 // LogEntryInput はログ登録のための入力データを表す
 type LogEntryInput struct {
-	EventID   uint
-	StatusID  uint
-	EventTime string // RFC3339形式 JST (例: "2006-01-02T15:04:05+09:00")
+	EventID                uint
+	StatusID               uint
+	EventTime              string  // RFC3339形式 JST (例: "2006-01-02T15:04:05+09:00")
+	ParticipateStayWatchIDs []int64 // 参加メンバの stay_watch_id（空可）
+	RoomStayWatchIDs        []int64 // 在室メンバの stay_watch_id（空可）
+}
+
+// resolveUserIDs は stay_watch_id のスライスから対応する内部 user_id のスライスを取得する
+// 解決できない stay_watch_id があればエラーを返す
+func resolveUserIDs(stayWatchIDs []int64) ([]uint, error) {
+	if len(stayWatchIDs) == 0 {
+		return nil, nil
+	}
+	u := model.User{}
+	users, err := u.ReadByStayWatchIDs(stayWatchIDs)
+	if err != nil {
+		return nil, err
+	}
+	if len(users) != len(stayWatchIDs) {
+		found := make(map[int64]bool, len(users))
+		for _, user := range users {
+			found[user.StayWatchID] = true
+		}
+		var missing []int64
+		for _, id := range stayWatchIDs {
+			if !found[id] {
+				missing = append(missing, id)
+			}
+		}
+		return nil, fmt.Errorf("unknown stay_watch_id(s): %v", missing)
+	}
+	userIDs := make([]uint, len(users))
+	for i, user := range users {
+		userIDs[i] = user.ID
+	}
+	return userIDs, nil
 }
 
 // RegisterLog は単一のログを登録する（JST検証付き）
@@ -36,14 +69,24 @@ func RegisterLog(input LogEntryInput) (model.Log, error) {
 		return model.Log{}, fmt.Errorf("invalid event_time: %v", err)
 	}
 
-	// ログを作成
+	// stay_watch_id を内部 user_id に解決
+	roomUserIDs, err := resolveUserIDs(input.RoomStayWatchIDs)
+	if err != nil {
+		return model.Log{}, fmt.Errorf("room_users: %v", err)
+	}
+	participateUserIDs, err := resolveUserIDs(input.ParticipateStayWatchIDs)
+	if err != nil {
+		return model.Log{}, fmt.Errorf("participate_users: %v", err)
+	}
+
+	// ログを作成（中間テーブル含めトランザクション）
 	log := model.Log{
 		EventID:   input.EventID,
 		StatusID:  input.StatusID,
 		EventTime: eventTimeJST,
 	}
 
-	if err := log.Create(); err != nil {
+	if err := log.CreateWithUsers(roomUserIDs, participateUserIDs); err != nil {
 		return model.Log{}, err
 	}
 

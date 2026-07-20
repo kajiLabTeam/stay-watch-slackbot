@@ -34,40 +34,6 @@ func PostRegisterEventCommand(c *gin.Context) {
 		return
 	}
 
-	// Type一覧を取得
-	types, err := service.GetTypes()
-	if err != nil {
-		log.Printf("Error getting types: %v", err)
-		respondError(c, http.StatusInternalServerError, msgInternalServerError)
-		return
-	}
-
-	var typeOptions []*slack.OptionBlockObject
-	for _, t := range types {
-		option := slack.OptionBlockObject{
-			Text:  slack.NewTextBlockObject("plain_text", t.Name, false, false),
-			Value: fmt.Sprintf("%d", t.ID),
-		}
-		typeOptions = append(typeOptions, &option)
-	}
-
-	// Tool一覧を取得
-	tools, err := service.GetTools()
-	if err != nil {
-		log.Printf("Error getting tools: %v", err)
-		respondError(c, http.StatusInternalServerError, msgInternalServerError)
-		return
-	}
-
-	var toolOptions []*slack.OptionBlockObject
-	for _, tool := range tools {
-		option := slack.OptionBlockObject{
-			Text:  slack.NewTextBlockObject("plain_text", tool.Name, false, false),
-			Value: fmt.Sprintf("%d", tool.ID),
-		}
-		toolOptions = append(toolOptions, &option)
-	}
-
 	blocks := []slack.Block{
 		// 名前
 		slack.NewInputBlock(
@@ -76,6 +42,13 @@ func PostRegisterEventCommand(c *gin.Context) {
 			slack.NewTextBlockObject("plain_text", "名前", false, false),
 			slack.NewPlainTextInputBlockElement(slack.NewTextBlockObject("plain_text", "例：スマブラ、Android", false, false), "name_input"),
 		),
+		// code
+		slack.NewInputBlock(
+			"code_block",
+			slack.NewTextBlockObject("plain_text", "イベントを一意に定める識別子を入力してください", false, false),
+			slack.NewTextBlockObject("plain_text", "Code", false, false),
+			slack.NewPlainTextInputBlockElement(slack.NewTextBlockObject("plain_text", "例：1, 0437ac48be2a81", false, false), "code_input"),
+		),
 		// 人数
 		slack.NewInputBlock(
 			"number_block",
@@ -83,27 +56,6 @@ func PostRegisterEventCommand(c *gin.Context) {
 			slack.NewTextBlockObject("plain_text", "人数", false, false),
 			slack.NewPlainTextInputBlockElement(slack.NewTextBlockObject("plain_text", "例：2", false, false), "number_input"),
 		),
-	}
-
-	// Type選択を追加（Typeが存在する場合）
-	if len(typeOptions) > 0 {
-		blocks = append(blocks, slack.NewInputBlock(
-			"type_block",
-			slack.NewTextBlockObject("plain_text", "タイプを選択してください", false, false),
-			slack.NewTextBlockObject("plain_text", "タイプ", false, false),
-			slack.NewOptionsSelectBlockElement(slack.OptTypeStatic, slack.NewTextBlockObject("plain_text", "タイプを選択", false, false), "type_select", typeOptions...),
-		))
-	}
-
-	// Tool選択を追加（Toolが存在する場合）
-	if len(toolOptions) > 0 {
-		blocks = append(blocks, &slack.InputBlock{
-			Type:     slack.MBTInput,
-			BlockID:  "tool_block",
-			Label:    slack.NewTextBlockObject("plain_text", "使用するツールを選択してください（複数選択可）", false, false),
-			Element:  slack.NewCheckboxGroupsBlockElement("tool_checkbox", toolOptions...),
-			Optional: true,
-		})
 	}
 
 	modalRequest := slack.ModalViewRequest{

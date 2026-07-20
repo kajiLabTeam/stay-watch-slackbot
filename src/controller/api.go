@@ -15,16 +15,6 @@ const (
 	msgBatchRegistrationCompleted = "batch registration completed"
 )
 
-// RegisterTypesRequest はType一括登録のリクエストボディ
-type RegisterTypesRequest struct {
-	Names []string `json:"names" binding:"required,min=1"`
-}
-
-// RegisterToolsRequest はTool一括登録のリクエストボディ
-type RegisterToolsRequest struct {
-	Names []string `json:"names" binding:"required,min=1"`
-}
-
 // RegisterStatusesRequest はStatus一括登録のリクエストボディ
 type RegisterStatusesRequest struct {
 	Names []string `json:"names" binding:"required,min=1"`
@@ -32,9 +22,11 @@ type RegisterStatusesRequest struct {
 
 // LogEntry はログ登録リクエストの1エントリを表す
 type LogEntry struct {
-	EventID   string `json:"event_id" binding:"required"`
-	StatusID  uint   `json:"status_id" binding:"required"`
-	EventTime string `json:"event_time" binding:"required"` // RFC3339形式 JST (例: "2006-01-02T15:04:05+09:00")
+	EventID          string  `json:"event_id" binding:"required"`
+	StatusID         uint    `json:"status_id" binding:"required"`
+	EventTime        string  `json:"event_time" binding:"required"` // RFC3339形式 JST (例: "2006-01-02T15:04:05+09:00")
+	ParticipateUsers []int64 `json:"participate_users"`             // 参加メンバの stay_watch_id（空可）
+	RoomUsers        []int64 `json:"room_users"`                    // 在室メンバの stay_watch_id（空可）
 }
 
 // RegisterLogsRequest はログ一括登録のリクエストボディ
@@ -61,44 +53,6 @@ func GetEvents(c *gin.Context) {
 	})
 }
 
-// GetTypes はType一覧を取得するAPIハンドラー
-// @Summary Type一覧を取得
-// @Tags types
-// @Produce json
-// @Success 200 {object} map[string]interface{}
-// @Failure 500 {object} map[string]interface{}
-// @Router /api/types [get]
-func GetTypes(c *gin.Context) {
-	types, err := service.GetTypes()
-	if err != nil {
-		respondError(c, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"data": types,
-	})
-}
-
-// GetTools はTool一覧を取得するAPIハンドラー
-// @Summary Tool一覧を取得
-// @Tags tools
-// @Produce json
-// @Success 200 {object} map[string]interface{}
-// @Failure 500 {object} map[string]interface{}
-// @Router /api/tools [get]
-func GetTools(c *gin.Context) {
-	tools, err := service.GetTools()
-	if err != nil {
-		respondError(c, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"data": tools,
-	})
-}
-
 // GetStatuses はStatus一覧を取得するAPIハンドラー
 // @Summary Status一覧を取得
 // @Tags statuses
@@ -115,66 +69,6 @@ func GetStatuses(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"data": statuses,
-	})
-}
-
-// PostRegisterTypes はTypeを一括登録するAPIハンドラー
-// @Summary Typeを一括登録
-// @Tags types
-// @Accept json
-// @Produce json
-// @Param request body RegisterTypesRequest true "登録するType名のリスト"
-// @Success 201 {object} map[string]interface{}
-// @Failure 400 {object} map[string]interface{}
-// @Failure 500 {object} map[string]interface{}
-// @Router /api/types [post]
-func PostRegisterTypes(c *gin.Context) {
-	var req RegisterTypesRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		respondError(c, http.StatusBadRequest, msgInvalidRequestBody)
-		return
-	}
-
-	types, errors, err := service.BatchRegisterTypes(req.Names)
-	if err != nil {
-		respondError(c, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	c.JSON(http.StatusCreated, gin.H{
-		"message": msgBatchRegistrationCompleted,
-		"data":    types,
-		"errors":  errors,
-	})
-}
-
-// PostRegisterTools はToolを一括登録するAPIハンドラー
-// @Summary Toolを一括登録
-// @Tags tools
-// @Accept json
-// @Produce json
-// @Param request body RegisterToolsRequest true "登録するTool名のリスト"
-// @Success 201 {object} map[string]interface{}
-// @Failure 400 {object} map[string]interface{}
-// @Failure 500 {object} map[string]interface{}
-// @Router /api/tools [post]
-func PostRegisterTools(c *gin.Context) {
-	var req RegisterToolsRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		respondError(c, http.StatusBadRequest, msgInvalidRequestBody)
-		return
-	}
-
-	tools, errors, err := service.BatchRegisterTools(req.Names)
-	if err != nil {
-		respondError(c, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	c.JSON(http.StatusCreated, gin.H{
-		"message": msgBatchRegistrationCompleted,
-		"data":    tools,
-		"errors":  errors,
 	})
 }
 
@@ -329,9 +223,11 @@ func PostRegisterLogs(c *gin.Context) {
 			return
 		}
 		inputs[i] = service.LogEntryInput{
-			EventID:   uint(eventID),
-			StatusID:  entry.StatusID,
-			EventTime: entry.EventTime,
+			EventID:                 uint(eventID),
+			StatusID:                entry.StatusID,
+			EventTime:               entry.EventTime,
+			ParticipateStayWatchIDs: entry.ParticipateUsers,
+			RoomStayWatchIDs:        entry.RoomUsers,
 		}
 	}
 
@@ -345,5 +241,19 @@ func PostRegisterLogs(c *gin.Context) {
 		"message": msgBatchRegistrationCompleted,
 		"data":    logs,
 		"errors":  errors,
+	})
+}
+
+// PostRefreshUserIcons は全ユーザのアイコンURLをSlackから取得し直してDBを更新するAPIハンドラー
+func PostRefreshUserIcons(c *gin.Context) {
+	updated, err := service.RefreshAllUserIcons()
+	if err != nil {
+		respondError(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "icon URLs refreshed",
+		"updated": updated,
 	})
 }

@@ -2,6 +2,8 @@ package model
 
 import (
 	"time"
+
+	"gorm.io/gorm"
 )
 
 func (l *Log) Create() error {
@@ -9,6 +11,28 @@ func (l *Log) Create() error {
 		return err
 	}
 	return nil
+}
+
+// CreateWithUsers は Log と関連する在室・参加ユーザーをトランザクションで一括登録する
+func (l *Log) CreateWithUsers(roomUserIDs []uint, participateUserIDs []uint) error {
+	return db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(l).Error; err != nil {
+			return err
+		}
+		for _, uid := range roomUserIDs {
+			row := LogsUserRoom{LogID: l.ID, UserID: uid}
+			if err := tx.Create(&row).Error; err != nil {
+				return err
+			}
+		}
+		for _, uid := range participateUserIDs {
+			row := LogsUserParticipate{LogID: l.ID, UserID: uid}
+			if err := tx.Create(&row).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 func (l *Log) ReadByID() error {

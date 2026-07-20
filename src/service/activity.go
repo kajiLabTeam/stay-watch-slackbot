@@ -114,15 +114,15 @@ func predictTime(times []string, weeks int, defaultTime string) string {
 
 // getUserActivityEventIDs はユーザーが登録している活動のイベントIDセットを取得する
 func getUserActivityEventIDs(userID uint) map[uint]bool {
-	correspond := model.Correspond{UserID: userID}
-	corresponds, err := correspond.ReadByUserID()
+	eventUser := model.EventUser{UserID: userID}
+	eventUsers, err := eventUser.ReadByUserID()
 	if err != nil {
 		return make(map[uint]bool)
 	}
 
 	eventIDs := make(map[uint]bool)
-	for _, c := range corresponds {
-		eventIDs[c.EventID] = true
+	for _, eu := range eventUsers {
+		eventIDs[eu.EventID] = true
 	}
 
 	return eventIDs
@@ -241,16 +241,16 @@ func GetAllActivityProbabilities(dayOfWeek time.Weekday) ([]ActivityProbability,
 
 // getUserActivityTags はユーザーが登録している活動名のリストを取得する
 func getUserActivityTags(userID uint) ([]string, error) {
-	correspond := model.Correspond{UserID: userID}
-	corresponds, err := correspond.ReadByUserID()
+	eventUser := model.EventUser{UserID: userID}
+	eventUsers, err := eventUser.ReadByUserID()
 	if err != nil {
 		// エラー時は空配列を返して処理を継続
 		return []string{}, nil
 	}
 
 	var tags []string
-	for _, c := range corresponds {
-		tags = append(tags, c.Event.Name)
+	for _, eu := range eventUsers {
+		tags = append(tags, eu.Event.Name)
 	}
 
 	return tags, nil

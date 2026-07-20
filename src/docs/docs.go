@@ -260,152 +260,6 @@ const docTemplate = `{
                     }
                 }
             }
-        },
-        "/api/tools": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "tools"
-                ],
-                "summary": "Tool一覧を取得",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            },
-            "post": {
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "tools"
-                ],
-                "summary": "Toolを一括登録",
-                "parameters": [
-                    {
-                        "description": "登録するTool名のリスト",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/controller.RegisterToolsRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            }
-        },
-        "/api/types": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "types"
-                ],
-                "summary": "Type一覧を取得",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            },
-            "post": {
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "types"
-                ],
-                "summary": "Typeを一括登録",
-                "parameters": [
-                    {
-                        "description": "登録するType名のリスト",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/controller.RegisterTypesRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            }
         }
     },
     "definitions": {
@@ -423,6 +277,20 @@ const docTemplate = `{
                 "event_time": {
                     "description": "RFC3339形式 JST (例: \"2006-01-02T15:04:05+09:00\")",
                     "type": "string"
+                },
+                "participate_users": {
+                    "description": "参加メンバの stay_watch_id（空可）",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "room_users": {
+                    "description": "在室メンバの stay_watch_id（空可）",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
                 },
                 "status_id": {
                     "type": "integer"
@@ -445,36 +313,6 @@ const docTemplate = `{
             }
         },
         "controller.RegisterStatusesRequest": {
-            "type": "object",
-            "required": [
-                "names"
-            ],
-            "properties": {
-                "names": {
-                    "type": "array",
-                    "minItems": 1,
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "controller.RegisterToolsRequest": {
-            "type": "object",
-            "required": [
-                "names"
-            ],
-            "properties": {
-                "names": {
-                    "type": "array",
-                    "minItems": 1,
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "controller.RegisterTypesRequest": {
             "type": "object",
             "required": [
                 "names"
