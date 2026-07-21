@@ -112,6 +112,9 @@ func Router() {
 	r.POST("/slack/command/add_user", controller.PostRegisterUserCommand)
 	r.POST("/slack/command/add_event", controller.PostRegisterEventCommand)
 	r.POST("/slack/command/add_correspond", controller.PostRegisterCorrespondCommand)
+	r.POST("/slack/command/list_users", controller.PostListUsersCommand)
+	r.POST("/slack/command/delete_user", controller.PostDeleteUserCommand)
+	r.POST("/slack/command/delete_ob_users", controller.PostDeleteOBUsersCommand)
 	r.GET("/notification", controller.SendDM)
 
 	// Swagger

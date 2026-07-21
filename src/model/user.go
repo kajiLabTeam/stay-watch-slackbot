@@ -56,3 +56,11 @@ func (u *User) ReadAll() ([]User, error) {
 func (u *User) UpdateIconURL() error {
 	return db.Model(u).Update("icon_url", u.IconURL).Error
 }
+
+// Delete はユーザを削除する（gorm.DeletedAtによる論理削除）
+func (u *User) Delete() error {
+	if err := db.Delete(u).Error; err != nil {
+		return err
+	}
+	return nil
+}
