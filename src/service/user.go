@@ -61,6 +61,52 @@ func fetchSlackIconURL(slackUserID string) (string, error) {
 	return slackUser.Profile.Image192, nil
 }
 
+// ListAllUsers は登録済みユーザの一覧を取得する
+func ListAllUsers() ([]model.User, error) {
+	u := model.User{}
+	return u.ReadAll()
+}
+
+// DeleteUserByName は指定した名前のユーザを削除する
+func DeleteUserByName(name string) error {
+	user := model.User{Name: name}
+	if err := user.ReadByName(); err != nil {
+		return err
+	}
+	if user.ID == 0 {
+		return errors.New("user not found")
+	}
+	return user.Delete()
+}
+
+// DeleteOBUsers はStayWatch側でOBタグ（id:13, name:"OB"）が付与されている
+// ユーザーを一括削除し、削除したユーザー名の一覧を返す
+func DeleteOBUsers() ([]string, error) {
+	u := model.User{}
+	users, err := u.ReadAll()
+	if err != nil {
+		return nil, err
+	}
+
+	var deleted []string
+	for i := range users {
+		detail, err := GetStayWatchUserDetail(users[i].StayWatchID)
+		if err != nil {
+			log.Printf("failed to fetch StayWatch detail for user %s: %v", users[i].Name, err)
+			continue
+		}
+		if !hasOBTag(detail) {
+			continue
+		}
+		if err := users[i].Delete(); err != nil {
+			log.Printf("failed to delete OB user %s: %v", users[i].Name, err)
+			continue
+		}
+		deleted = append(deleted, users[i].Name)
+	}
+	return deleted, nil
+}
+
 // RefreshAllUserIcons は全ユーザのアイコン URL を Slack から取得し直してDBを更新する
 func RefreshAllUserIcons() (int, error) {
 	u := model.User{}

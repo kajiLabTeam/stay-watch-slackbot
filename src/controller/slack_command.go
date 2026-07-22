@@ -26,6 +26,64 @@ func PostRegisterUserCommand(c *gin.Context) {
 	respondSlackSuccess(c, fmt.Sprintf("User %s registered successfully.", text))
 }
 
+// PostListUsersCommand は登録済みユーザの一覧をテキストで返す
+func PostListUsersCommand(c *gin.Context) {
+	users, err := service.ListAllUsers()
+	if err != nil {
+		respondSlackError(c, fmt.Sprintf("Error: %s", err.Error()))
+		return
+	}
+	if len(users) == 0 {
+		respondSlackSuccess(c, "登録されているユーザはいません。")
+		return
+	}
+
+	message := "登録ユーザ一覧:\n"
+	for _, u := range users {
+		message += fmt.Sprintf("- %s (SlackID: %s)\n", u.Name, u.SlackID)
+	}
+	respondSlackSuccess(c, message)
+}
+
+// PostDeleteUserCommand はコマンドのtextで指定したユーザ名のユーザを削除する
+func PostDeleteUserCommand(c *gin.Context) {
+	name := c.PostForm("text")
+	if name == "" {
+		respondSlackError(c, "削除するユーザ名を指定してください。例: /delete_user 山田太郎")
+		return
+	}
+
+	if err := service.DeleteUserByName(name); err != nil {
+		if err.Error() == "user not found" {
+			respondSlackError(c, fmt.Sprintf("User %s not found.", name))
+			return
+		}
+		respondSlackError(c, fmt.Sprintf("Error: %s", err.Error()))
+		return
+	}
+	respondSlackSuccess(c, fmt.Sprintf("User %s deleted successfully.", name))
+}
+
+// PostDeleteOBUsersCommand はStayWatch側でOBタグ（id:13, name:"OB"）が
+// 付与されているユーザーを一括削除する
+func PostDeleteOBUsersCommand(c *gin.Context) {
+	deleted, err := service.DeleteOBUsers()
+	if err != nil {
+		respondSlackError(c, fmt.Sprintf("Error: %s", err.Error()))
+		return
+	}
+	if len(deleted) == 0 {
+		respondSlackSuccess(c, "OBタグが付与されたユーザはいませんでした。")
+		return
+	}
+
+	message := fmt.Sprintf("以下の%d名のOBユーザを削除しました:\n", len(deleted))
+	for _, name := range deleted {
+		message += fmt.Sprintf("- %s\n", name)
+	}
+	respondSlackSuccess(c, message)
+}
+
 func PostRegisterEventCommand(c *gin.Context) {
 	s, err := slack.SlashCommandParse(c.Request)
 	if err != nil {

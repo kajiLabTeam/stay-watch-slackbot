@@ -2,6 +2,7 @@
 package service
 
 import (
+	"fmt"
 	"net/url"
 	"strconv"
 	"time"
@@ -48,6 +49,26 @@ func GetStayWatchMember() ([]StaywatchUsers, error) {
 		return nil, err
 	}
 	return users, nil
+}
+
+// GetStayWatchUserDetail StayWatchから指定ユーザーの詳細（タグ情報を含む）を取得する
+func GetStayWatchUserDetail(stayWatchID int64) (StayWatchUserDetail, error) {
+	var detail StayWatchUserDetail
+	url := fmt.Sprintf("%s%s/%d", staywatch.BaseURL, staywatch.Users, stayWatchID)
+	if err := stayWatchClient.Get(url, &detail); err != nil {
+		return StayWatchUserDetail{}, err
+	}
+	return detail, nil
+}
+
+// hasOBTag はStayWatchユーザー詳細がOBタグ（id:13, name:"OB"）を持つかを判定する
+func hasOBTag(detail StayWatchUserDetail) bool {
+	for _, tag := range detail.Tags {
+		if tag.ID == 13 && tag.Name == "OB" {
+			return true
+		}
+	}
+	return false
 }
 
 // GetStayWatchProbability 指定されたユーザーの来訪確率を取得する

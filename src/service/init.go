@@ -29,6 +29,19 @@ type StaywatchUsers struct {
 	Name string `json:"name"`
 }
 
+// StayWatchTag はStayWatchユーザーに付与されるタグを表す
+type StayWatchTag struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+}
+
+// StayWatchUserDetail はStayWatchのユーザー詳細（タグ情報を含む）を表す
+type StayWatchUserDetail struct {
+	ID   int64          `json:"id"`
+	Name string         `json:"name"`
+	Tags []StayWatchTag `json:"tags"`
+}
+
 // Probability はユーザーの来訪確率を表す
 type Probability struct {
 	UserID      int     `json:"userId"`
