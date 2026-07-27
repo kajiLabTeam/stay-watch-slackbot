@@ -12,6 +12,7 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/kajiLabTeam/stay-watch-slackbot/config"
 	"github.com/kajiLabTeam/stay-watch-slackbot/controller"
 	_ "github.com/kajiLabTeam/stay-watch-slackbot/docs"
 	swaggerFiles "github.com/swaggo/files"
@@ -47,7 +48,7 @@ func errorOnlyLogger(w io.Writer) gin.HandlerFunc {
 
 // labNetwork は研究室LANとして許可するCIDR
 var labNetwork = func() *net.IPNet {
-	_, network, err := net.ParseCIDR("192.168.100.0/23")
+	_, network, err := net.ParseCIDR(config.CORS.LabNetworkCIDR)
 	if err != nil {
 		panic(fmt.Sprintf("invalid lab network CIDR: %v", err))
 	}
@@ -63,16 +64,12 @@ func Router() {
 	r := gin.New()
 	r.Use(gin.Recovery())
 	r.Use(errorOnlyLogger(gin.DefaultWriter))
-	_ = r.SetTrustedProxies([]string{"127.0.0.1"})
+	_ = r.SetTrustedProxies(config.Server.TrustedProxies)
 
 	r.Use(cors.New(cors.Config{
 		// アクセスを許可したいアクセス元
-		AllowOrigins: []string{
-			"https://staywatch.kajilab.net",
-			"http://localhost:3000",
-			"http://localhost:5173",
-		},
-		// 研究室LAN(192.168.100.0/23)とループバックからのアクセスを許可
+		AllowOrigins: config.CORS.AllowOrigins,
+		// 研究室LANとループバックからのアクセスを許可
 		AllowOriginFunc: func(origin string) bool {
 			u, err := url.Parse(origin)
 			if err != nil {
@@ -89,22 +86,13 @@ func Router() {
 			return ip.IsLoopback() || labNetwork.Contains(ip)
 		},
 		// アクセスを許可したいHTTPメソッド
-		AllowMethods: []string{
-			"GET",
-			"POST",
-		},
+		AllowMethods: config.CORS.AllowMethods,
 		// 許可したいHTTPリクエストヘッダ
-		AllowHeaders: []string{
-			"Content-Type",
-			"Content-Length",
-			"Accept-Encoding",
-			"Accept",
-			"Authorization",
-		},
+		AllowHeaders: config.CORS.AllowHeaders,
 		// cookieなどの情報を必要とするかどうか
-		AllowCredentials: true,
+		AllowCredentials: config.CORS.AllowCredentials,
 		// preflightリクエストの結果をキャッシュする時間
-		MaxAge: 24 * time.Hour,
+		MaxAge: config.CORS.MaxAge,
 	}))
 
 	// Slack endpoints
@@ -131,5 +119,5 @@ func Router() {
 	r.POST("/api/users/icons/refresh", controller.PostRefreshUserIcons)
 	r.GET("/api/board", controller.GetBoard)
 
-	_ = r.Run(":8085")
+	_ = r.Run(":" + config.Server.Port)
 }

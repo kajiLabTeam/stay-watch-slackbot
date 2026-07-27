@@ -3,6 +3,7 @@ package service
 import (
 	"time"
 
+	"github.com/kajiLabTeam/stay-watch-slackbot/config"
 	"github.com/kajiLabTeam/stay-watch-slackbot/lib"
 	"github.com/kajiLabTeam/stay-watch-slackbot/model"
 )
@@ -51,29 +52,11 @@ type BoardData struct {
 	TimeBlocks  []BoardTimeBlock `json:"timeBlocks"`
 }
 
-// timeBlockDef は時間帯の定義（分単位、JST）。範囲は結合テスト時に調整する仮置き
-type timeBlockDef struct {
-	id         string
-	label      string
-	rangeLabel string
-	startMin   int // 含む
-	endMin     int // 含まない
-}
+// timeBlockDef は時間帯の定義（分単位、JST）
+type timeBlockDef = config.BoardTimeBlockConfig
 
-var boardTimeBlocks = []timeBlockDef{
-	{id: "noon", label: "昼", rangeLabel: "12〜15時", startMin: 12 * 60, endMin: 15 * 60},
-	{id: "evening", label: "夕方", rangeLabel: "15〜19時", startMin: 15 * 60, endMin: 19 * 60},
-	{id: "night", label: "夜", rangeLabel: "19時〜", startMin: 19 * 60, endMin: 22 * 60},
-}
-
-// 段階化の閾値（結合テスト時に調整する仮置き）
-const (
-	likelihoodHighThreshold = 0.5
-	likelihoodMidThreshold  = 0.3
-	likelihoodMinThreshold  = 0.1 // これ未満の活動は表示しない
-	arrivalLikelyThreshold  = 0.5
-	arrivalMaybeThreshold   = 0.3
-)
+// boardTimeBlocks は時間帯の定義一覧（環境変数で調整可能。config.TimeBlocks参照）
+var boardTimeBlocks = config.TimeBlocks
 
 // boardPersonAssign はユーザーの時間帯割当に必要な情報を保持する
 type boardPersonAssign struct {
@@ -127,10 +110,10 @@ func GetBoardData() (BoardData, error) {
 		activities := buildBlockActivities(activityProbs, eventMembers, blockUserIDs, def)
 
 		blocks = append(blocks, BoardTimeBlock{
-			ID:         def.id,
-			Label:      def.label,
-			Range:      def.rangeLabel,
-			IsNow:      nowMin >= def.startMin && nowMin < def.endMin,
+			ID:         def.ID,
+			Label:      def.Label,
+			Range:      def.RangeLabel,
+			IsNow:      nowMin >= def.StartMin && nowMin < def.EndMin,
 			Activities: activities,
 			People:     people,
 		})
@@ -161,7 +144,7 @@ func collectBoardPeople(weekday time.Weekday) []boardPersonAssign {
 		userByStayWatchID[user.StayWatchID] = user
 	}
 	for _, p := range probs {
-		if p.Probability < arrivalMaybeThreshold {
+		if p.Probability < config.Board.ArrivalMaybe {
 			continue
 		}
 		user, ok := userByStayWatchID[int64(p.UserID)]
@@ -169,7 +152,7 @@ func collectBoardPeople(weekday time.Weekday) []boardPersonAssign {
 			continue
 		}
 		arrival := "maybe"
-		if p.Probability >= arrivalLikelyThreshold {
+		if p.Probability >= config.Board.ArrivalLikely {
 			arrival = "likely"
 		}
 		arrivalByStayWatchID[user.StayWatchID] = arrival
@@ -226,11 +209,11 @@ func predictionMinutesByUserID(results []Result) map[int64]int {
 func isAssignedToBlock(a boardPersonAssign, def timeBlockDef) bool {
 	switch {
 	case a.visitMin >= 0 && a.departureMin >= 0:
-		return a.visitMin < def.endMin && a.departureMin > def.startMin
+		return a.visitMin < def.EndMin && a.departureMin > def.StartMin
 	case a.visitMin >= 0:
-		return a.visitMin < def.endMin
+		return a.visitMin < def.EndMin
 	case a.departureMin >= 0:
-		return a.departureMin > def.startMin
+		return a.departureMin > def.StartMin
 	default:
 		return false
 	}
@@ -259,19 +242,19 @@ func buildBlockActivities(probs []ActivityProbability, eventMembers map[string]m
 	activities := []BoardActivity{}
 	for _, ap := range probs {
 		maxProb := 0.0
-		for hour := def.startMin / 60; hour < (def.endMin+59)/60 && hour < 24; hour++ {
+		for hour := def.StartMin / 60; hour < (def.EndMin+59)/60 && hour < 24; hour++ {
 			if ap.Probabilities[hour] > maxProb {
 				maxProb = ap.Probabilities[hour]
 			}
 		}
-		if maxProb < likelihoodMinThreshold {
+		if maxProb < config.Board.LikelihoodMin {
 			continue
 		}
 
 		likelihood := "low"
-		if maxProb >= likelihoodHighThreshold {
+		if maxProb >= config.Board.LikelihoodHigh {
 			likelihood = "high"
-		} else if maxProb >= likelihoodMidThreshold {
+		} else if maxProb >= config.Board.LikelihoodMid {
 			likelihood = "mid"
 		}
 
