@@ -26,12 +26,21 @@ type Status struct {
 	Logs []Log  `gorm:"foreignKey:StatusID"`
 }
 
+// GameType はイベントの分類（デジタルゲーム／アナログゲーム）を表す
+type GameType struct {
+	gorm.Model
+	Name   string  `gorm:"type:varchar(255);uniqueIndex;not null"` // digital, analog
+	Events []Event `gorm:"foreignKey:GameTypeID"`
+}
+
 // Event は活動イベントを表す
 type Event struct {
 	gorm.Model
-	Name       string `gorm:"type:varchar(255);uniqueIndex;not null"` // スマブラ、人生ゲーム など
-	Code       string `gorm:"type:varchar(255);uniqueIndex;not null"` // イベントを一意に定める識別子（例: 1, 2, 0437ac48be2a81）
-	MinNumber  int    `gorm:"default:2"`                              // 最低必要人数
+	Name       string      `gorm:"type:varchar(255);uniqueIndex;not null"` // スマブラ、人生ゲーム など
+	Code       string      `gorm:"type:varchar(255);uniqueIndex;not null"` // イベントを一意に定める識別子（例: 1, 2, 0437ac48be2a81）
+	MinNumber  int         `gorm:"default:2"`                              // 最低必要人数
+	GameTypeID *uint       `gorm:"index"`                                  // 分類未設定を許容するためNULL可
+	GameType   *GameType   `gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 	EventUsers []EventUser `gorm:"foreignKey:EventID"`
 }
 
@@ -87,9 +96,26 @@ type UserDetail struct {
 
 var db *gorm.DB
 
+// gameTypeSeeds は初期投入するイベント分類
+var gameTypeSeeds = []string{"digital", "analog"}
+
 func init() {
 	db = lib.SQLConnect()
-	if err := db.AutoMigrate(&User{}, &Status{}, &Event{}, &EventUser{}, &Log{}, &LogsUserRoom{}, &LogsUserParticipate{}); err != nil {
+	if err := db.AutoMigrate(&User{}, &Status{}, &GameType{}, &Event{}, &EventUser{}, &Log{}, &LogsUserRoom{}, &LogsUserParticipate{}); err != nil {
 		log.Fatalf("AutoMigrate failed: %v", err)
 	}
+	if err := seedGameTypes(); err != nil {
+		log.Fatalf("seedGameTypes failed: %v", err)
+	}
+}
+
+// seedGameTypes は digital/analog のイベント分類が未登録であれば作成する
+func seedGameTypes() error {
+	for _, name := range gameTypeSeeds {
+		gameType := GameType{Name: name}
+		if err := db.Where("name = ?", name).FirstOrCreate(&gameType).Error; err != nil {
+			return err
+		}
+	}
+	return nil
 }

@@ -1,0 +1,26 @@
+-- events をデジタルゲーム／アナログゲームに分類するための game_types テーブル追加
+--
+-- model.GameType の新設、および model.Event.GameTypeID の追加に伴う変更。
+-- 新規テーブル追加・カラム追加のため、アプリ起動時の GORM AutoMigrate で自動的に反映される
+-- （手動実行は不要。本ファイルは記録用）。
+--
+-- 参考: AutoMigrate が実行するのと等価なDDL
+-- CREATE TABLE game_types (
+--     id         BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+--     created_at DATETIME(3),
+--     updated_at DATETIME(3),
+--     deleted_at DATETIME(3),
+--     name       VARCHAR(255) NOT NULL,
+--     UNIQUE INDEX idx_game_types_name (name),
+--     INDEX idx_game_types_deleted_at (deleted_at)
+-- );
+--
+-- ALTER TABLE events
+--     ADD COLUMN game_type_id BIGINT UNSIGNED NULL AFTER min_number,
+--     ADD INDEX idx_events_game_type_id (game_type_id),
+--     ADD CONSTRAINT fk_events_game_type
+--         FOREIGN KEY (game_type_id) REFERENCES game_types(id)
+--         ON UPDATE CASCADE ON DELETE SET NULL;
+--
+-- アプリ起動後、初期データとして game_types に 'digital' / 'analog' の2行が
+-- 自動シードされる（model.seedGameTypes、既存データがあればスキップされる）。
