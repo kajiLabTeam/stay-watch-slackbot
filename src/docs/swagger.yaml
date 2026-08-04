@@ -163,11 +163,30 @@ paths:
       - board
   /api/events:
     get:
+      parameters:
+      - description: 取得するEventのID
+        in: query
+        name: id
+        type: integer
+      - description: 絞り込む分類（digital または analog）
+        in: query
+        name: game_type
+        type: string
       produces:
       - application/json
       responses:
         "200":
           description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
           schema:
             additionalProperties: true
             type: object

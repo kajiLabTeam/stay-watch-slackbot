@@ -33,3 +33,23 @@ func GetEvents() ([]model.Event, error) {
 	}
 	return events, nil
 }
+
+// GetEventByID は指定したIDのイベントを取得する
+func GetEventByID(id uint) (model.Event, error) {
+	e := model.Event{}
+	e.ID = id
+	if err := e.ReadByID(); err != nil {
+		return e, err
+	}
+	return e, nil
+}
+
+// GetEventsByGameType は指定した分類名（"digital" | "analog"）のイベント一覧を取得する
+func GetEventsByGameType(gameTypeName string) ([]model.Event, error) {
+	var e model.Event
+	events, err := e.ReadAllByGameType(gameTypeName)
+	if err != nil {
+		return events, err
+	}
+	return events, nil
+}

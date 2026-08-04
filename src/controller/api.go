@@ -35,13 +35,56 @@ type RegisterLogsRequest struct {
 }
 
 // GetEvents はEvent一覧を取得するAPIハンドラー
+// id を指定すると該当するEvent1件を、game_type（"digital" | "analog"）を指定すると
+// その分類に属するEventの一覧を返す。いずれも未指定の場合は全件を返す
 // @Summary Event一覧を取得
 // @Tags events
 // @Produce json
+// @Param id query int false "取得するEventのID"
+// @Param game_type query string false "絞り込む分類（digital または analog）"
 // @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
 // @Failure 500 {object} map[string]interface{}
 // @Router /api/events [get]
 func GetEvents(c *gin.Context) {
+	if idStr := c.Query("id"); idStr != "" {
+		id, err := strconv.ParseUint(idStr, 10, 64)
+		if err != nil {
+			respondError(c, http.StatusBadRequest, "id must be a positive integer")
+			return
+		}
+
+		event, err := service.GetEventByID(uint(id))
+		if err != nil {
+			respondError(c, http.StatusNotFound, "event not found")
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"data": event,
+		})
+		return
+	}
+
+	if gameType := c.Query("game_type"); gameType != "" {
+		if gameType != "digital" && gameType != "analog" {
+			respondError(c, http.StatusBadRequest, "game_type must be 'digital' or 'analog'")
+			return
+		}
+
+		events, err := service.GetEventsByGameType(gameType)
+		if err != nil {
+			respondError(c, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"data": events,
+		})
+		return
+	}
+
 	events, err := service.GetEvents()
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, err.Error())

@@ -8,6 +8,7 @@
 | --- | --- |
 | `users` | システム利用ユーザー（Slack/StayWatch と紐付け） |
 | `events` | 活動イベント（スマブラ、人生ゲーム など） |
+| `game_types` | イベントの分類（digital / analog） |
 | `statuses` | 活動ステータス（start / end / pose） |
 | `logs` | 活動ログ（イベントの開始・終了等の記録） |
 | `event_users` | Event ↔ User 中間テーブル（イベント担当者） |
@@ -50,10 +51,29 @@
 | `code` | varchar(255) | unique, not null | イベントを一意に定める識別子（例: `1`, `2`, `0437ac48be2a81`） |
 | `name` | varchar(255) | unique, not null | イベント名（例: スマブラ、人生ゲーム） |
 | `min_number` | int | default 2 | 活動成立に必要な最低人数 |
+| `game_type_id` | uint | FK → `game_types.id`, nullable, ON UPDATE CASCADE / ON DELETE SET NULL | 分類未設定を許容するためNULL可 |
 
 **関連:**
 - `event_users` を介して `users` と多対多
 - `logs` と一対多（`logs.event_id`）
+- `game_types` と多対一
+
+---
+
+### game_types
+
+イベントの分類（デジタルゲーム／アナログゲーム）を表すマスタテーブル。アプリ起動時に `digital` / `analog` の2行が自動シードされる。
+
+| カラム | 型 | 制約 | 説明 |
+| --- | --- | --- | --- |
+| `id` | uint | PK | |
+| `created_at` | datetime | | |
+| `updated_at` | datetime | | |
+| `deleted_at` | datetime | index, nullable | |
+| `name` | varchar(255) | unique, not null | `digital` / `analog` |
+
+**関連:**
+- `events` と一対多（`events.game_type_id`）
 
 ---
 
@@ -140,6 +160,9 @@ Log と User の中間テーブル。そのイベント（ログ）に参加し�
 ## ER 概略
 
 ```
+                              [ game_types ] 1
+                                            │
+                                            │ N
 [ users ] 1 ─── N [ event_users ] N ─── 1 [ events ] 1 ─── N [ logs ] N ─── 1 [ statuses ]
     │                                                            │
     │ 1                                                        N │
@@ -151,6 +174,7 @@ Log と User の中間テーブル。そのイベント（ログ）に参加し�
 - Event 1 : N Logs
 - Status 1 : N Logs
 - Event N : M User （`event_users`）
+- Event N : 1 GameType （`events.game_type_id`）
 - Log N : M User （`logs_user_rooms`：在室ユーザー）
 - Log N : M User （`logs_user_participates`：参加ユーザー）
 

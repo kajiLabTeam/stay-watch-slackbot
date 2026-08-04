@@ -17,20 +17,25 @@ stay-watch-slackbotのREST APIドキュメント。
       - [レスポンス (HTTP 201 Created)](#レスポンス-http-201-created)
       - [使用例](#使用例-1)
   - [Event API](#event-api)
-    - [GET /api/events/{id}/probability](#get-apieventsidprobability)
+    - [GET /api/events](#get-apievents)
       - [リクエスト](#リクエスト-2)
       - [パラメータ](#パラメータ-1)
       - [レスポンス (HTTP 200 OK)](#レスポンス-http-200-ok-1)
       - [使用例](#使用例-2)
-  - [Log API](#log-api)
-    - [POST /api/logs](#post-apilogs)
+    - [GET /api/events/{id}/probability](#get-apieventsidprobability)
       - [リクエスト](#リクエスト-3)
       - [パラメータ](#パラメータ-2)
+      - [レスポンス (HTTP 200 OK)](#レスポンス-http-200-ok-2)
+      - [使用例](#使用例-3)
+  - [Log API](#log-api)
+    - [POST /api/logs](#post-apilogs)
+      - [リクエスト](#リクエスト-4)
+      - [パラメータ](#パラメータ-3)
       - [レスポンス (HTTP 201 Created)](#レスポンス-http-201-created-1)
       - [部分成功時](#部分成功時)
       - [時刻の扱い](#時刻の扱い)
       - [バリデーション](#バリデーション)
-      - [使用例](#使用例-3)
+      - [使用例](#使用例-4)
 
 ---
 
@@ -131,6 +136,82 @@ curl -X POST http://localhost:8085/api/statuses \
 ---
 
 ## Event API
+
+### GET /api/events
+
+イベント一覧を取得する。`id` または `game_type` を指定すると絞り込みができる。
+
+#### リクエスト
+
+```sh
+GET /api/events
+GET /api/events?id=5
+GET /api/events?game_type=digital
+```
+
+#### パラメータ
+
+| パラメータ | 型 | 必須 | 説明 |
+| ----- | ----- | ----- | ----- |
+| id | uint | No | 指定したIDのイベント1件のみを取得する |
+| game_type | string | No | `digital` または `analog` を指定し、その分類のイベントのみに絞り込む |
+
+`id` と `game_type` を同時に指定した場合は `id` が優先される。いずれも指定しない場合は全件を返す。
+
+#### レスポンス (HTTP 200 OK)
+
+全件・`game_type` 指定時（配列）:
+
+```json
+{
+  "data": [
+    {
+      "ID": 2,
+      "CreatedAt": "2026-01-20T03:52:00.051Z",
+      "UpdatedAt": "2026-01-20T03:52:00.051Z",
+      "DeletedAt": null,
+      "Name": "大乱闘スマッシュブラザーズ",
+      "Code": "event_2",
+      "MinNumber": 3,
+      "GameTypeID": 1,
+      "GameType": {
+        "ID": 1,
+        "Name": "digital"
+      }
+    }
+  ]
+}
+```
+
+`id` 指定時（単一オブジェクト）:
+
+```json
+{
+  "data": {
+    "ID": 5,
+    "Name": "カタン(スタンダート)",
+    "Code": "event_5",
+    "MinNumber": 3,
+    "GameTypeID": 2,
+    "GameType": {
+      "ID": 2,
+      "Name": "analog"
+    }
+  }
+}
+```
+
+`id` に該当するイベントが存在しない場合は `404 Not Found`、`game_type` に `digital`/`analog` 以外を指定した場合は `400 Bad Request` を返す。
+
+#### 使用例
+
+```bash
+curl http://localhost:8085/api/events
+curl "http://localhost:8085/api/events?id=5"
+curl "http://localhost:8085/api/events?game_type=analog"
+```
+
+---
 
 ### GET /api/events/{id}/probability
 

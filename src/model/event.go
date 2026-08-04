@@ -8,7 +8,7 @@ func (e *Event) Create() error {
 }
 
 func (e *Event) ReadByID() error {
-	if err := db.First(e, e.ID).Error; err != nil {
+	if err := db.Preload("GameType").First(e, e.ID).Error; err != nil {
 		return err
 	}
 	return nil
@@ -23,7 +23,19 @@ func (e *Event) ReadByName() error {
 
 func (e *Event) ReadAll() ([]Event, error) {
 	var events []Event
-	if err := db.Find(&events).Error; err != nil {
+	if err := db.Preload("GameType").Find(&events).Error; err != nil {
+		return events, err
+	}
+	return events, nil
+}
+
+// ReadAllByGameType は指定した分類名（"digital" | "analog"）のイベントを取得する
+func (e *Event) ReadAllByGameType(gameTypeName string) ([]Event, error) {
+	var events []Event
+	if err := db.Preload("GameType").
+		Joins("JOIN game_types ON game_types.id = events.game_type_id").
+		Where("game_types.name = ?", gameTypeName).
+		Find(&events).Error; err != nil {
 		return events, err
 	}
 	return events, nil
