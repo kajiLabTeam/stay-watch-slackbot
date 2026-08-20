@@ -73,7 +73,6 @@ func getEnvStringSlice(key string, defaultValue []string) []string {
 // CORSConfig はCORSミドルウェアの設定を保持する
 type CORSConfig struct {
 	AllowOrigins     []string
-	LabNetworkCIDR   string
 	AllowMethods     []string
 	AllowHeaders     []string
 	AllowCredentials bool
@@ -135,8 +134,7 @@ func init() {
 			"http://localhost:3000",
 			"http://localhost:5173",
 		}),
-		LabNetworkCIDR: getEnv("CORS_LAB_NETWORK_CIDR", "192.168.100.0/23"),
-		AllowMethods:   getEnvStringSlice("CORS_ALLOW_METHODS", []string{"GET", "POST"}),
+		AllowMethods: getEnvStringSlice("CORS_ALLOW_METHODS", []string{"GET", "POST"}),
 		AllowHeaders: getEnvStringSlice("CORS_ALLOW_HEADERS", []string{
 			"Content-Type",
 			"Content-Length",

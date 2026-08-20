@@ -4,9 +4,7 @@ package router
 import (
 	"fmt"
 	"io"
-	"net"
 	"net/http"
-	"net/url"
 	"os"
 	"time"
 
@@ -46,15 +44,6 @@ func errorOnlyLogger(w io.Writer) gin.HandlerFunc {
 	}
 }
 
-// labNetwork は研究室LANとして許可するCIDR
-var labNetwork = func() *net.IPNet {
-	_, network, err := net.ParseCIDR(config.CORS.LabNetworkCIDR)
-	if err != nil {
-		panic(fmt.Sprintf("invalid lab network CIDR: %v", err))
-	}
-	return network
-}()
-
 func Router() {
 	gin.DisableConsoleColor()
 	f, _ := os.Create("../log/server.log")
@@ -69,22 +58,6 @@ func Router() {
 	r.Use(cors.New(cors.Config{
 		// アクセスを許可したいアクセス元
 		AllowOrigins: config.CORS.AllowOrigins,
-		// 研究室LANとループバックからのアクセスを許可
-		AllowOriginFunc: func(origin string) bool {
-			u, err := url.Parse(origin)
-			if err != nil {
-				return false
-			}
-			host, _, err := net.SplitHostPort(u.Host)
-			if err != nil {
-				host = u.Host
-			}
-			ip := net.ParseIP(host)
-			if ip == nil {
-				return false
-			}
-			return ip.IsLoopback() || labNetwork.Contains(ip)
-		},
 		// アクセスを許可したいHTTPメソッド
 		AllowMethods: config.CORS.AllowMethods,
 		// 許可したいHTTPリクエストヘッダ
