@@ -109,7 +109,6 @@ definitions:
       range:
         type: string
     type: object
-host: localhost:8085
 info:
   contact: {}
   description: 研究室の来訪予測・活動管理のためのAPI
