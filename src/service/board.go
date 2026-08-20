@@ -12,44 +12,62 @@ import (
 
 // BoardActivity は時間帯内の活動1件を表す
 type BoardActivity struct {
-	Name       string `json:"name"`
-	Likelihood string `json:"likelihood"` // "high" | "mid" | "low"
-	Headcount  int    `json:"headcount"`
+	// 活動（イベント）名
+	Name string `json:"name" example:"人狼"`
+	// 発生確率の高さ
+	Likelihood string `json:"likelihood" example:"high" enums:"high,mid,low"`
+	// 想定人数
+	Headcount int `json:"headcount" example:"4"`
 }
 
 // BoardPerson は時間帯内に来そうな人1件を表す
 type BoardPerson struct {
-	Name      string `json:"name"`
-	AvatarURL string `json:"avatarUrl"`
-	Arrival   string `json:"arrival"` // "likely" | "maybe"
+	// ユーザー名
+	Name string `json:"name" example:"山田太郎"`
+	// アイコン画像URL
+	AvatarURL string `json:"avatarUrl" example:"https://example.com/avatar.png"`
+	// 来訪見込み度
+	Arrival string `json:"arrival" example:"likely" enums:"likely,maybe"`
 }
 
 // BoardPresentMember は現在在室している人を表す
 type BoardPresentMember struct {
-	Name      string `json:"name"`
-	AvatarURL string `json:"avatarUrl"`
+	// ユーザー名
+	Name string `json:"name" example:"山田太郎"`
+	// アイコン画像URL
+	AvatarURL string `json:"avatarUrl" example:"https://example.com/avatar.png"`
 }
 
 // BoardPresence は在室情報を表す（在室はフロントがStayWatchから直接取得するため常に空）
 type BoardPresence struct {
+	// 在室中メンバーの配列（常に空配列）
 	Members []BoardPresentMember `json:"members"`
 }
 
 // BoardTimeBlock は1時間帯（昼/夕方/夜）を表す
 type BoardTimeBlock struct {
-	ID         string          `json:"id"` // "noon" | "evening" | "night"
-	Label      string          `json:"label"`
-	Range      string          `json:"range"`
-	IsNow      bool            `json:"isNow"`
+	// 時間帯の識別子
+	ID string `json:"id" example:"noon" enums:"noon,evening,night"`
+	// 時間帯の表示名
+	Label string `json:"label" example:"昼"`
+	// 時間帯の範囲（表示用文字列）
+	Range string `json:"range" example:"12:00-17:00"`
+	// 現在時刻がこの時間帯に含まれるか
+	IsNow bool `json:"isNow" example:"true"`
+	// この時間帯に発生しうる活動一覧
 	Activities []BoardActivity `json:"activities"`
-	People     []BoardPerson   `json:"people"`
+	// この時間帯に来訪見込みのある人一覧
+	People []BoardPerson `json:"people"`
 }
 
 // BoardData は共有モニター画面全体の表示データを表す
 type BoardData struct {
-	CurrentTime string           `json:"currentTime"`
-	Presence    BoardPresence    `json:"presence"`
-	TimeBlocks  []BoardTimeBlock `json:"timeBlocks"`
+	// データ生成時点の現在時刻（JST）
+	CurrentTime string `json:"currentTime" example:"2006-01-02T15:04:05+09:00"`
+	// 在室情報
+	Presence BoardPresence `json:"presence"`
+	// 時間帯（昼/夕方/夜）ごとの表示データ
+	TimeBlocks []BoardTimeBlock `json:"timeBlocks"`
 }
 
 // timeBlockDef は時間帯の定義（分単位、JST）
