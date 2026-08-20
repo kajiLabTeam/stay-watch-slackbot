@@ -171,7 +171,6 @@ GET /api/events?game_type=digital
       "UpdatedAt": "2026-01-20T03:52:00.051Z",
       "DeletedAt": null,
       "Name": "大乱闘スマッシュブラザーズ",
-      "Code": "event_2",
       "MinNumber": 3,
       "GameTypeID": 1,
       "GameType": {
@@ -190,7 +189,6 @@ GET /api/events?game_type=digital
   "data": {
     "ID": 5,
     "Name": "カタン(スタンダート)",
-    "Code": "event_5",
     "MinNumber": 3,
     "GameTypeID": 2,
     "GameType": {
@@ -267,14 +265,14 @@ Content-Type: application/json
 {
   "logs": [
     {
-      "event_id": "0437ac48be2a81",
+      "event_id": "3",
       "status_id": 1,
       "event_time": "2025-11-24T17:40:26+09:00",
       "room_users": [1001, 1002],
       "participate_users": [1001]
     },
     {
-      "event_id": "0437ac48be2a81",
+      "event_id": "3",
       "status_id": 2,
       "event_time": "2025-11-24T17:42:26+09:00",
       "room_users": [],
@@ -289,7 +287,7 @@ Content-Type: application/json
 | フィールド | 型 | 必須 | 説明 |
 | ----- | ----- | ----- | ----- |
 | logs | array | Yes | ログエントリの配列（1件以上必須） |
-| logs[].event_id | string | Yes | イベント識別子（events.code に対応） |
+| logs[].event_id | string | Yes | イベント識別子（events.id に対応） |
 | logs[].status_id | uint | Yes | ステータスID（statuses テーブルに存在する必要あり） |
 | logs[].event_time | string | Yes | イベント発生日時（JST、RFC3339形式: `2006-01-02T15:04:05+09:00`） |
 | logs[].room_users | int64[] | No | 在室メンバの stay_watch_id の配列（省略可） |
@@ -351,7 +349,7 @@ Content-Type: application/json
 
 #### バリデーション
 
-1. `event_id` が events テーブルの `code` カラムに存在すること
+1. `event_id` が events テーブルの `id` カラムに存在すること
 2. `status_id` が statuses テーブルに存在すること
 3. `event_time` が RFC3339 形式（`+09:00` など UTC オフセット付き）であること
 4. `room_users`・`participate_users` の各 stay_watch_id が users テーブルに存在すること
@@ -364,14 +362,14 @@ curl -X POST http://localhost:8085/api/logs \
   -d '{
     "logs": [
       {
-        "event_id": "0437ac48be2a81",
+        "event_id": "3",
         "status_id": 1,
         "event_time": "2025-11-24T17:40:26+09:00",
         "room_users": [1001, 1002],
         "participate_users": [1001]
       },
       {
-        "event_id": "0437ac48be2a81",
+        "event_id": "3",
         "status_id": 2,
         "event_time": "2025-11-24T17:42:26+09:00",
         "room_users": [],

@@ -37,7 +37,6 @@ type GameType struct {
 type Event struct {
 	gorm.Model
 	Name       string      `gorm:"type:varchar(255);uniqueIndex;not null"` // スマブラ、人生ゲーム など
-	Code       string      `gorm:"type:varchar(255);uniqueIndex;not null"` // イベントを一意に定める識別子（例: 1, 2, 0437ac48be2a81）
 	MinNumber  int         `gorm:"default:2"`                              // 最低必要人数
 	GameTypeID *uint       `gorm:"index"`                                  // 分類未設定を許容するためNULL可
 	GameType   *GameType   `gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`

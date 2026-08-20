@@ -48,7 +48,6 @@
 | `created_at` | datetime | | |
 | `updated_at` | datetime | | |
 | `deleted_at` | datetime | index, nullable | |
-| `code` | varchar(255) | unique, not null | イベントを一意に定める識別子（例: `1`, `2`, `0437ac48be2a81`） |
 | `name` | varchar(255) | unique, not null | イベント名（例: スマブラ、人生ゲーム） |
 | `min_number` | int | default 2 | 活動成立に必要な最低人数 |
 | `game_type_id` | uint | FK → `game_types.id`, nullable, ON UPDATE CASCADE / ON DELETE SET NULL | 分類未設定を許容するためNULL可 |

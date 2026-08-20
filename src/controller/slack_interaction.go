@@ -96,7 +96,6 @@ func handleRegisterEvent(c *gin.Context, interaction slack.InteractionCallback) 
 	values := interaction.View.State.Values
 	responseURL := interaction.View.PrivateMetadata
 	name := values["name_block"]["name_input"].Value
-	code := values["code_block"]["code_input"].Value
 	numStr := values["number_block"]["number_input"].Value
 
 	numInt, err := strconv.Atoi(numStr)
@@ -105,7 +104,7 @@ func handleRegisterEvent(c *gin.Context, interaction slack.InteractionCallback) 
 		return
 	}
 
-	if _, err := service.RegisterEvent(name, numInt, code); err != nil {
+	if _, err := service.RegisterEvent(name, numInt); err != nil {
 		if err.Error() == "event already exists" {
 			_, _, _ = api.PostMessage("", slack.MsgOptionReplaceOriginal(responseURL), slack.MsgOptionText("登録済みのイベントです", false))
 			return
