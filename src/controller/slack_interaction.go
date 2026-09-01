@@ -1,16 +1,22 @@
 package controller
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/kajiLabTeam/stay-watch-slackbot/service"
 	"github.com/slack-go/slack"
 )
+
+// eventImageRegisterTimeout は画像取得〜保存にかける上限時間。
+// Slack への3秒応答とは別に、バックグラウンド処理が無限に残らないようにするためのもの。
+const eventImageRegisterTimeout = 2 * time.Minute
 
 func PostSlackInteraction(c *gin.Context) {
 	payload := c.PostForm("payload")
@@ -134,33 +140,60 @@ func handleSelectEvents(c *gin.Context, interaction slack.InteractionCallback) {
 	c.JSON(http.StatusOK, gin.H{})
 }
 
-// handleRegisterEventImage は選択されたイベントに Slack アップロード画像を紐づける
+// handleRegisterEventImage は選択されたイベントに Slack アップロード画像を紐づける。
+//
+// Slack は view_submission に3秒以内の応答を要求するが、画像のダウンロードと
+// オブジェクトストレージへの保存はそれを超えうる。先に 200 を返してモーダルを閉じ、
+// 実際の保存はバックグラウンドで行って response_url へ結果を投稿する。
 func handleRegisterEventImage(c *gin.Context, interaction slack.InteractionCallback) {
 	values := interaction.View.State.Values
 	responseURL := interaction.View.PrivateMetadata
 
 	eventID, err := strconv.ParseUint(values["event_select_block"]["event_select"].SelectedOption.Value, 10, 64)
 	if err != nil {
-		respondError(c, http.StatusBadRequest, "invalid event id")
+		c.JSON(http.StatusOK, slack.NewErrorsViewSubmissionResponse(map[string]string{
+			"event_select_block": "話題を選択してください。",
+		}))
 		return
 	}
 
 	files := values["image_block"]["image_input"].Files
 	if len(files) == 0 {
-		_, _, _ = api.PostMessage("", slack.MsgOptionReplaceOriginal(responseURL), slack.MsgOptionText("画像が選択されていません。", false))
-		c.JSON(http.StatusOK, gin.H{})
+		c.JSON(http.StatusOK, slack.NewErrorsViewSubmissionResponse(map[string]string{
+			"image_block": "画像が選択されていません。",
+		}))
 		return
 	}
 	file := files[0]
 
-	event, err := service.RegisterEventImageFromSlack(c.Request.Context(), uint(eventID), file.URLPrivate, file.Mimetype)
+	go registerEventImageAsync(uint(eventID), file.URLPrivate, file.Mimetype, responseURL)
+
+	// モーダルを閉じる（空の200応答）
+	c.JSON(http.StatusOK, gin.H{})
+}
+
+// registerEventImageAsync は画像の保存を行い、結果を response_url へ投稿する。
+// リクエストのライフサイクルから外れるため、独自のタイムアウト付き context を使う。
+func registerEventImageAsync(eventID uint, urlPrivate, mimetype, responseURL string) {
+	ctx, cancel := context.WithTimeout(context.Background(), eventImageRegisterTimeout)
+	defer cancel()
+
+	event, err := service.RegisterEventImageFromSlack(ctx, eventID, urlPrivate, mimetype)
 	if err != nil {
 		log.Printf("failed to register event image (event %d): %v", eventID, err)
-		_, _, _ = api.PostMessage("", slack.MsgOptionReplaceOriginal(responseURL), slack.MsgOptionText("画像の登録に失敗しました: "+err.Error(), false))
-		c.JSON(http.StatusOK, gin.H{})
+		postToResponseURL(responseURL, "画像の登録に失敗しました: "+err.Error())
 		return
 	}
 
-	_, _, _ = api.PostMessage("", slack.MsgOptionReplaceOriginal(responseURL), slack.MsgOptionText(fmt.Sprintf("「%s」の画像を登録しました。", event.Name), false))
-	c.JSON(http.StatusOK, gin.H{})
+	postToResponseURL(responseURL, fmt.Sprintf("「%s」の画像を登録しました。", event.Name))
+}
+
+// postToResponseURL は Slack の response_url へメッセージを投稿する
+func postToResponseURL(responseURL, text string) {
+	if responseURL == "" {
+		return
+	}
+	if _, _, err := api.PostMessage("", slack.MsgOptionReplaceOriginal(responseURL), slack.MsgOptionText(text, false)); err != nil {
+		log.Printf("failed to post to response_url: %v", err)
+	}
 }
