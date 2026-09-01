@@ -23,9 +23,13 @@ func PostSlackInteraction(c *gin.Context) {
 
 	var interaction slack.InteractionCallback
 	if err := json.Unmarshal([]byte(payload), &interaction); err != nil {
+		log.Printf("slack interaction: invalid payload: %v", err)
 		respondError(c, http.StatusBadRequest, "invalid payload")
 		return
 	}
+
+	log.Printf("slack interaction: type=%s callback_id=%s block_actions=%d",
+		interaction.Type, interaction.View.CallbackID, len(interaction.ActionCallback.BlockActions))
 
 	if len(interaction.ActionCallback.BlockActions) > 0 {
 		handleBlockAction(c, interaction)
@@ -166,10 +170,11 @@ func handleRegisterEventImage(c *gin.Context, interaction slack.InteractionCallb
 	}
 	file := files[0]
 
+	log.Printf("register_event_image: accepted (event %d, mimetype %s)", eventID, file.Mimetype)
 	go registerEventImageAsync(uint(eventID), file.URLPrivate, file.Mimetype, responseURL)
 
-	// モーダルを閉じる（空の200応答）
-	c.JSON(http.StatusOK, gin.H{})
+	// モーダルを閉じる。view_submission では空ボディの200が正
+	c.Status(http.StatusOK)
 }
 
 // registerEventImageAsync は画像の保存を行い、結果を response_url へ投稿する。
