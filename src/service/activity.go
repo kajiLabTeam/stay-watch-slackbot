@@ -171,29 +171,33 @@ func extractStartDatetimes(logs []model.Log) []string {
 
 // calcHourlyProbabilities は各時間帯（JST 0〜23時）の確率を計算する
 // H時 = CDF(H:30) - CDF((H-1):30) で (H-1):30〜H:30 の確率密度合計を求める
+//
+// クラスタリングは重い処理なのでモデルを1度だけ構築し、24時刻ぶんのCDF評価に使い回す
 func calcHourlyProbabilities(datetimeStrings []string, weeks int) []float64 {
+	probModel, err := prediction.NewProbabilityModelFromDatetimes(datetimeStrings)
+	if err != nil {
+		return make([]float64, 24)
+	}
+
+	// HH:30（H = 0〜23）の24点のCDFを求める。各時間帯の確率はこの差分で得られる
+	cdf := make([]float64, 24)
+	for hour := 0; hour < 24; hour++ {
+		value, err := probModel.Probability(fmt.Sprintf("%02d:30", hour), weeks)
+		if err != nil {
+			return make([]float64, 24)
+		}
+		cdf[hour] = value
+	}
+
 	probabilities := make([]float64, 24)
 	for hour := 0; hour < 24; hour++ {
-		probabilities[hour] = calcHourProbability(datetimeStrings, hour, weeks)
+		probabilities[hour] = clampHourProbability(cdf[hour] - cdf[(hour-1+24)%24])
 	}
 	return probabilities
 }
 
-// calcHourProbability は指定時間帯の確率を計算する
-func calcHourProbability(datetimeStrings []string, hour int, weeks int) float64 {
-	endTimeJST := fmt.Sprintf("%02d:30", hour)
-	startTimeJST := fmt.Sprintf("%02d:30", (hour-1+24)%24)
-
-	cdfEnd, err := prediction.GetProbabilityFromDatetimes(datetimeStrings, endTimeJST, weeks)
-	if err != nil {
-		return 0.0
-	}
-	cdfStart, err := prediction.GetProbabilityFromDatetimes(datetimeStrings, startTimeJST, weeks)
-	if err != nil {
-		return 0.0
-	}
-
-	prob := cdfEnd - cdfStart
+// clampHourProbability は時間帯確率を 0.0〜1.0 の範囲に丸める
+func clampHourProbability(prob float64) float64 {
 	if math.IsNaN(prob) || math.IsInf(prob, 0) || prob < 0 {
 		return 0.0
 	}
