@@ -51,6 +51,15 @@ func (e *Event) ReadAllWithUsers() ([]Event, error) {
 	return events, nil
 }
 
+// UpdateImageKey はイベントの画像キーのみを更新する
+func (e *Event) UpdateImageKey(imageKey string) error {
+	if err := db.Model(e).Update("image_key", imageKey).Error; err != nil {
+		return err
+	}
+	e.ImageKey = imageKey
+	return nil
+}
+
 func (e *Event) Update() error {
 	if err := db.Save(e).Error; err != nil {
 		return err
