@@ -2,6 +2,8 @@ package controller
 
 import (
 	"encoding/json"
+	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -87,6 +89,8 @@ func handleViewSubmission(c *gin.Context, interaction slack.InteractionCallback)
 		handleRegisterEvent(c, interaction)
 	case "select_events":
 		handleSelectEvents(c, interaction)
+	case "register_event_image":
+		handleRegisterEventImage(c, interaction)
 	default:
 		c.JSON(http.StatusOK, gin.H{})
 	}
@@ -127,5 +131,36 @@ func handleSelectEvents(c *gin.Context, interaction slack.InteractionCallback) {
 	}
 
 	_, _, _ = api.PostMessage("", slack.MsgOptionReplaceOriginal(responseURL), slack.MsgOptionText("登録が完了しました。", false))
+	c.JSON(http.StatusOK, gin.H{})
+}
+
+// handleRegisterEventImage は選択されたイベントに Slack アップロード画像を紐づける
+func handleRegisterEventImage(c *gin.Context, interaction slack.InteractionCallback) {
+	values := interaction.View.State.Values
+	responseURL := interaction.View.PrivateMetadata
+
+	eventID, err := strconv.ParseUint(values["event_select_block"]["event_select"].SelectedOption.Value, 10, 64)
+	if err != nil {
+		respondError(c, http.StatusBadRequest, "invalid event id")
+		return
+	}
+
+	files := values["image_block"]["image_input"].Files
+	if len(files) == 0 {
+		_, _, _ = api.PostMessage("", slack.MsgOptionReplaceOriginal(responseURL), slack.MsgOptionText("画像が選択されていません。", false))
+		c.JSON(http.StatusOK, gin.H{})
+		return
+	}
+	file := files[0]
+
+	event, err := service.RegisterEventImageFromSlack(c.Request.Context(), uint(eventID), file.URLPrivate, file.Mimetype)
+	if err != nil {
+		log.Printf("failed to register event image (event %d): %v", eventID, err)
+		_, _, _ = api.PostMessage("", slack.MsgOptionReplaceOriginal(responseURL), slack.MsgOptionText("画像の登録に失敗しました: "+err.Error(), false))
+		c.JSON(http.StatusOK, gin.H{})
+		return
+	}
+
+	_, _, _ = api.PostMessage("", slack.MsgOptionReplaceOriginal(responseURL), slack.MsgOptionText(fmt.Sprintf("「%s」の画像を登録しました。", event.Name), false))
 	c.JSON(http.StatusOK, gin.H{})
 }

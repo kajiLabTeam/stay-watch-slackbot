@@ -73,6 +73,7 @@ func Router() {
 	r.POST("/slack/interaction", controller.PostSlackInteraction)
 	r.POST("/slack/command/add_user", controller.PostRegisterUserCommand)
 	r.POST("/slack/command/add_event", controller.PostRegisterEventCommand)
+	r.POST("/slack/command/add_event_image", controller.PostRegisterEventImageCommand)
 	r.POST("/slack/command/add_correspond", controller.PostRegisterCorrespondCommand)
 	r.POST("/slack/command/list_users", controller.PostListUsersCommand)
 	r.POST("/slack/command/delete_user", controller.PostDeleteUserCommand)

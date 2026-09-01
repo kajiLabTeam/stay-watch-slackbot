@@ -178,3 +178,66 @@ func PostRegisterCorrespondCommand(c *gin.Context) {
 	}
 	respondSlackSuccess(c, "モーダルを開きました。")
 }
+
+// PostRegisterEventImageCommand は活動画像の登録モーダルを開く
+func PostRegisterEventImageCommand(c *gin.Context) {
+	s, err := slack.SlashCommandParse(c.Request)
+	if err != nil {
+		log.Printf("Error parsing slash command: %v", err)
+		respondError(c, http.StatusBadRequest, "bad request")
+		return
+	}
+
+	events, err := service.GetEvents()
+	if err != nil {
+		respondError(c, http.StatusInternalServerError, msgInternalServerError)
+		return
+	}
+	if len(events) == 0 {
+		respondSlackSuccess(c, "登録されている話題がありません。先に /add_event で登録してください。")
+		return
+	}
+
+	var options []*slack.OptionBlockObject
+	for _, event := range events {
+		options = append(options, &slack.OptionBlockObject{
+			Text:  slack.NewTextBlockObject("plain_text", event.Name, false, false),
+			Value: fmt.Sprintf("%d", event.ID),
+		})
+	}
+
+	blocks := []slack.Block{
+		slack.NewInputBlock(
+			"event_select_block",
+			slack.NewTextBlockObject("plain_text", "話題を選択してください", false, false),
+			nil,
+			slack.NewOptionsSelectBlockElement(slack.OptTypeStatic, nil, "event_select", options...),
+		),
+		slack.NewInputBlock(
+			"image_block",
+			slack.NewTextBlockObject("plain_text", "画像をアップロードしてください", false, false),
+			slack.NewTextBlockObject("plain_text", "png / jpg / jpeg、1ファイルのみ", false, false),
+			slack.NewFileInputBlockElement("image_input").
+				WithFileTypes("png", "jpg", "jpeg").
+				WithMaxFiles(1),
+		),
+	}
+
+	modalRequest := slack.ModalViewRequest{
+		Type:            slack.VTModal,
+		CallbackID:      "register_event_image",
+		Title:           slack.NewTextBlockObject("plain_text", "活動画像の登録", false, false),
+		Submit:          slack.NewTextBlockObject("plain_text", "送信", false, false),
+		Close:           slack.NewTextBlockObject("plain_text", "閉じる", false, false),
+		PrivateMetadata: s.ResponseURL,
+		Blocks: slack.Blocks{
+			BlockSet: blocks,
+		},
+	}
+	if _, err := api.OpenView(s.TriggerID, modalRequest); err != nil {
+		log.Printf("Error opening view: %v", err)
+		respondError(c, http.StatusInternalServerError, msgInternalServerError)
+		return
+	}
+	respondSlackSuccess(c, "モーダルを開きました。")
+}

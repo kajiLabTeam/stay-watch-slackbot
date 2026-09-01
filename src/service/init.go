@@ -75,6 +75,9 @@ var (
 	staywatch       StayWatch
 	stayWatchClient *lib.StayWatchClient
 	slackClient     *slack.Client
+	// slackBotToken は url_private など Slack API 以外のエンドポイントに
+	// 直接 Bearer 認証をかける場合に使う
+	slackBotToken string
 )
 
 func init() {
@@ -85,5 +88,6 @@ func init() {
 	staywatch.APIKey = getEnv("STAYWATCH_API_KEY", "")
 
 	stayWatchClient = lib.NewStayWatchClient(staywatch.APIKey)
-	slackClient = slack.New(getEnv("SLACK_BOT_USER_OAUTH_TOKEN", ""))
+	slackBotToken = getEnv("SLACK_BOT_USER_OAUTH_TOKEN", "")
+	slackClient = slack.New(slackBotToken)
 }
