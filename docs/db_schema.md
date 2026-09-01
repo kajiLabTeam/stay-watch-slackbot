@@ -32,6 +32,7 @@
 | `name` | varchar(255) | | 表示名 |
 | `slack_id` | varchar(255) | | Slack ユーザー ID |
 | `stay_watch_id` | bigint | | StayWatch システム上の ID |
+| `icon_url` | varchar(255) | | Slack `users.info` の `profile.image_192` をキャッシュしたアイコンURL |
 
 **関連:**
 - `event_users` を介して `events` と多対多
@@ -51,6 +52,7 @@
 | `name` | varchar(255) | unique, not null | イベント名（例: スマブラ、人生ゲーム） |
 | `min_number` | int | default 2 | 活動成立に必要な最低人数 |
 | `game_type_id` | uint | FK → `game_types.id`, nullable, ON UPDATE CASCADE / ON DELETE SET NULL | 分類未設定を許容するためNULL可 |
+| `image_key` | varchar(255) | nullable | 活動画像のオブジェクトストレージ上のキー（例: `events/5.png`）。公開URL全体ではなくキーのみを保存する。未登録は NULL |
 
 **関連:**
 - `event_users` を介して `users` と多対多

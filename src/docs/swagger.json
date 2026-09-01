@@ -396,20 +396,27 @@
         "service.BoardActivity": {
             "type": "object",
             "properties": {
-                "headcount": {
-                    "description": "想定人数",
+                "id": {
+                    "description": "イベントID",
                     "type": "integer",
-                    "example": 4
+                    "example": 5
                 },
-                "likelihood": {
-                    "description": "発生確率の高さ",
+                "imageUrl": {
+                    "description": "活動の画像URL。未登録の場合は null",
                     "type": "string",
-                    "enum": [
-                        "high",
-                        "mid",
-                        "low"
-                    ],
-                    "example": "high"
+                    "example": "https://example.com/daycast/events/5.png"
+                },
+                "members": {
+                    "description": "この活動に関心があり、かつ今日来訪しそうなメンバー",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/service.BoardPerson"
+                    }
+                },
+                "minNumber": {
+                    "description": "活動の成立に必要な最低人数",
+                    "type": "integer",
+                    "example": 3
                 },
                 "name": {
                     "description": "活動（イベント）名",
@@ -421,10 +428,24 @@
         "service.BoardData": {
             "type": "object",
             "properties": {
+                "activities": {
+                    "description": "今日メンバーが揃いそうな活動一覧",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/service.BoardActivity"
+                    }
+                },
                 "currentTime": {
-                    "description": "データ生成時点の現在時刻（JST）",
+                    "description": "データ生成時点の現在時刻（JST、\"HH:MM\"形式）",
                     "type": "string",
-                    "example": "2006-01-02T15:04:05+09:00"
+                    "example": "15:04"
+                },
+                "hours": {
+                    "description": "現在時刻から最大4時間ぶんのタイムライン",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/service.BoardHour"
+                    }
                 },
                 "presence": {
                     "description": "在室情報",
@@ -433,12 +454,22 @@
                             "$ref": "#/definitions/service.BoardPresence"
                         }
                     ]
+                }
+            }
+        },
+        "service.BoardHour": {
+            "type": "object",
+            "properties": {
+                "hour": {
+                    "description": "時（JST、0〜23）",
+                    "type": "integer",
+                    "example": 15
                 },
-                "timeBlocks": {
-                    "description": "時間帯（昼/夕方/夜）ごとの表示データ",
+                "people": {
+                    "description": "この時間に在室していそうな人一覧",
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/service.BoardTimeBlock"
+                        "$ref": "#/definitions/service.BoardPerson"
                     }
                 }
             }
@@ -446,15 +477,6 @@
         "service.BoardPerson": {
             "type": "object",
             "properties": {
-                "arrival": {
-                    "description": "来訪見込み度",
-                    "type": "string",
-                    "enum": [
-                        "likely",
-                        "maybe"
-                    ],
-                    "example": "likely"
-                },
                 "avatarUrl": {
                     "description": "アイコン画像URL",
                     "type": "string",
@@ -491,50 +513,6 @@
                     "description": "ユーザー名",
                     "type": "string",
                     "example": "山田太郎"
-                }
-            }
-        },
-        "service.BoardTimeBlock": {
-            "type": "object",
-            "properties": {
-                "activities": {
-                    "description": "この時間帯に発生しうる活動一覧",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/service.BoardActivity"
-                    }
-                },
-                "id": {
-                    "description": "時間帯の識別子",
-                    "type": "string",
-                    "enum": [
-                        "noon",
-                        "evening",
-                        "night"
-                    ],
-                    "example": "noon"
-                },
-                "isNow": {
-                    "description": "現在時刻がこの時間帯に含まれるか",
-                    "type": "boolean",
-                    "example": true
-                },
-                "label": {
-                    "description": "時間帯の表示名",
-                    "type": "string",
-                    "example": "昼"
-                },
-                "people": {
-                    "description": "この時間帯に来訪見込みのある人一覧",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/service.BoardPerson"
-                    }
-                },
-                "range": {
-                    "description": "時間帯の範囲（表示用文字列）",
-                    "type": "string",
-                    "example": "12:00-17:00"
                 }
             }
         }

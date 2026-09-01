@@ -62,18 +62,23 @@ definitions:
     type: object
   service.BoardActivity:
     properties:
-      headcount:
-        description: 想定人数
-        example: 4
+      id:
+        description: イベントID
+        example: 5
         type: integer
-      likelihood:
-        description: 発生確率の高さ
-        enum:
-        - high
-        - mid
-        - low
-        example: high
+      imageUrl:
+        description: 活動の画像URL。未登録の場合は null
+        example: https://example.com/daycast/events/5.png
         type: string
+      members:
+        description: この活動に関心があり、かつ今日来訪しそうなメンバー
+        items:
+          $ref: '#/definitions/service.BoardPerson'
+        type: array
+      minNumber:
+        description: 活動の成立に必要な最低人数
+        example: 3
+        type: integer
       name:
         description: 活動（イベント）名
         example: 人狼
@@ -81,29 +86,39 @@ definitions:
     type: object
   service.BoardData:
     properties:
+      activities:
+        description: 今日メンバーが揃いそうな活動一覧
+        items:
+          $ref: '#/definitions/service.BoardActivity'
+        type: array
       currentTime:
-        description: データ生成時点の現在時刻（JST）
-        example: "2006-01-02T15:04:05+09:00"
+        description: データ生成時点の現在時刻（JST、"HH:MM"形式）
+        example: "15:04"
         type: string
+      hours:
+        description: 現在時刻から最大4時間ぶんのタイムライン
+        items:
+          $ref: '#/definitions/service.BoardHour'
+        type: array
       presence:
         allOf:
         - $ref: '#/definitions/service.BoardPresence'
         description: 在室情報
-      timeBlocks:
-        description: 時間帯（昼/夕方/夜）ごとの表示データ
+    type: object
+  service.BoardHour:
+    properties:
+      hour:
+        description: 時（JST、0〜23）
+        example: 15
+        type: integer
+      people:
+        description: この時間に在室していそうな人一覧
         items:
-          $ref: '#/definitions/service.BoardTimeBlock'
+          $ref: '#/definitions/service.BoardPerson'
         type: array
     type: object
   service.BoardPerson:
     properties:
-      arrival:
-        description: 来訪見込み度
-        enum:
-        - likely
-        - maybe
-        example: likely
-        type: string
       avatarUrl:
         description: アイコン画像URL
         example: https://example.com/avatar.png
@@ -130,39 +145,6 @@ definitions:
       name:
         description: ユーザー名
         example: 山田太郎
-        type: string
-    type: object
-  service.BoardTimeBlock:
-    properties:
-      activities:
-        description: この時間帯に発生しうる活動一覧
-        items:
-          $ref: '#/definitions/service.BoardActivity'
-        type: array
-      id:
-        description: 時間帯の識別子
-        enum:
-        - noon
-        - evening
-        - night
-        example: noon
-        type: string
-      isNow:
-        description: 現在時刻がこの時間帯に含まれるか
-        example: true
-        type: boolean
-      label:
-        description: 時間帯の表示名
-        example: 昼
-        type: string
-      people:
-        description: この時間帯に来訪見込みのある人一覧
-        items:
-          $ref: '#/definitions/service.BoardPerson'
-        type: array
-      range:
-        description: 時間帯の範囲（表示用文字列）
-        example: 12:00-17:00
         type: string
     type: object
 info:
