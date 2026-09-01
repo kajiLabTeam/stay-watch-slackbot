@@ -1,13 +1,22 @@
 package controller
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/kajiLabTeam/stay-watch-slackbot/service"
 	"github.com/slack-go/slack"
+)
+
+const (
+	// slackMaxSelectOptions は static_select が受け付ける選択肢の上限
+	slackMaxSelectOptions = 100
+	// slackMaxOptionTextLen は選択肢の表示テキストの上限文字数
+	slackMaxOptionTextLen = 75
 )
 
 func PostRegisterUserCommand(c *gin.Context) {
@@ -200,8 +209,13 @@ func PostRegisterEventImageCommand(c *gin.Context) {
 
 	var options []*slack.OptionBlockObject
 	for _, event := range events {
+		// Slack の static_select は選択肢を100件までしか受け付けない
+		if len(options) >= slackMaxSelectOptions {
+			log.Printf("event options truncated to %d (total %d)", slackMaxSelectOptions, len(events))
+			break
+		}
 		options = append(options, &slack.OptionBlockObject{
-			Text:  slack.NewTextBlockObject("plain_text", event.Name, false, false),
+			Text:  slack.NewTextBlockObject("plain_text", truncateRunes(event.Name, slackMaxOptionTextLen), false, false),
 			Value: fmt.Sprintf("%d", event.ID),
 		})
 	}
@@ -235,9 +249,34 @@ func PostRegisterEventImageCommand(c *gin.Context) {
 		},
 	}
 	if _, err := api.OpenView(s.TriggerID, modalRequest); err != nil {
-		log.Printf("Error opening view: %v", err)
+		log.Printf("Error opening view: %s", describeSlackError(err))
 		respondError(c, http.StatusInternalServerError, msgInternalServerError)
 		return
 	}
 	respondSlackSuccess(c, "モーダルを開きました。")
+}
+
+// describeSlackError は Slack API のエラーを詳細つきで文字列化する。
+// Slack は "invalid_arguments" のような大雑把なコードとは別に、
+// response_metadata.messages に具体的な理由を入れてくる。
+func describeSlackError(err error) string {
+	var slackErr slack.SlackErrorResponse
+	if !errors.As(err, &slackErr) {
+		return err.Error()
+	}
+
+	detail := slackErr.Err
+	if msgs := slackErr.ResponseMetadata.Messages; len(msgs) > 0 {
+		detail += " (" + strings.Join(msgs, " / ") + ")"
+	}
+	return detail
+}
+
+// truncateRunes は文字列を最大 max 文字（ルーン単位）に切り詰める
+func truncateRunes(s string, max int) string {
+	r := []rune(s)
+	if len(r) <= max {
+		return s
+	}
+	return string(r[:max])
 }
