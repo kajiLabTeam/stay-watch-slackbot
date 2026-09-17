@@ -71,7 +71,7 @@ definitions:
         example: https://example.com/daycast/events/5.png
         type: string
       members:
-        description: この活動に関心があり、かつ今日来訪しそうなメンバー
+        description: この活動に関心があり、かつその時間帯に在室していそうなメンバー
         items:
           $ref: '#/definitions/service.BoardPerson'
         type: array
@@ -86,17 +86,12 @@ definitions:
     type: object
   service.BoardData:
     properties:
-      activities:
-        description: 今日メンバーが揃いそうな活動一覧
-        items:
-          $ref: '#/definitions/service.BoardActivity'
-        type: array
       currentTime:
         description: データ生成時点の現在時刻（JST、"HH:MM"形式）
         example: "15:04"
         type: string
       hours:
-        description: 現在時刻から最大4時間ぶんのタイムライン
+        description: 現在時刻から最大4時間ぶんのタイムライン（各時間帯に在室予測メンバーと成立しそうな活動を含む）
         items:
           $ref: '#/definitions/service.BoardHour'
         type: array
@@ -107,6 +102,11 @@ definitions:
     type: object
   service.BoardHour:
     properties:
+      activities:
+        description: この時間に成立しそうな活動一覧
+        items:
+          $ref: '#/definitions/service.BoardActivity'
+        type: array
       hour:
         description: 時（JST、0〜23）
         example: 15

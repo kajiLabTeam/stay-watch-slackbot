@@ -91,6 +91,8 @@ type BoardThresholds struct {
 	ArrivalLikely float64
 	// ArrivalMaybe は「今日来そうな人」の足切りに使う
 	ArrivalMaybe float64
+	// ActivityProbability は時間帯別の活動成立判定に使うGMM活動確率のしきい値
+	ActivityProbability float64
 }
 
 // S3Config はS3互換オブジェクトストレージ（RustFS）の設定を保持する
@@ -157,8 +159,9 @@ func init() {
 	}
 
 	Board = BoardThresholds{
-		ArrivalLikely: getEnvFloat("BOARD_ARRIVAL_LIKELY_THRESHOLD", 0.5),
-		ArrivalMaybe:  getEnvFloat("BOARD_ARRIVAL_MAYBE_THRESHOLD", 0.3),
+		ArrivalLikely:       getEnvFloat("BOARD_ARRIVAL_LIKELY_THRESHOLD", 0.5),
+		ArrivalMaybe:        getEnvFloat("BOARD_ARRIVAL_MAYBE_THRESHOLD", 0.3),
+		ActivityProbability: getEnvFloat("BOARD_ACTIVITY_PROBABILITY_THRESHOLD", 0.3),
 	}
 
 	S3 = S3Config{

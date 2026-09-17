@@ -12,6 +12,7 @@ import (
 
 // ActivityProbability は活動名と1時間ごとの発生確率を表す
 type ActivityProbability struct {
+	EventID       uint      `json:"event_id"`
 	ActivityName  string    `json:"activity_name"`
 	Probabilities []float64 `json:"probabilities"` // length 24, index = hour (0-23 JST), value = 0.0〜1.0
 }
@@ -211,16 +212,17 @@ func clampHourProbability(prob float64) float64 {
 func calcEventProbability(ev model.Event, dayOfWeek time.Weekday) ActivityProbability {
 	logs, err := model.ReadLogsByEventIDAndDayOfWeek(ev.ID, dayOfWeek)
 	if err != nil || len(logs) == 0 {
-		return ActivityProbability{ActivityName: ev.Name, Probabilities: make([]float64, 24)}
+		return ActivityProbability{EventID: ev.ID, ActivityName: ev.Name, Probabilities: make([]float64, 24)}
 	}
 
 	weeks := calculateWeeks(logs)
 	datetimeStrings := extractStartDatetimes(logs)
 	if len(datetimeStrings) == 0 {
-		return ActivityProbability{ActivityName: ev.Name, Probabilities: make([]float64, 24)}
+		return ActivityProbability{EventID: ev.ID, ActivityName: ev.Name, Probabilities: make([]float64, 24)}
 	}
 
 	return ActivityProbability{
+		EventID:       ev.ID,
 		ActivityName:  ev.Name,
 		Probabilities: calcHourlyProbabilities(datetimeStrings, weeks),
 	}

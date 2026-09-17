@@ -414,7 +414,7 @@ const docTemplate = `{
                     "example": "https://example.com/daycast/events/5.png"
                 },
                 "members": {
-                    "description": "この活動に関心があり、かつ今日来訪しそうなメンバー",
+                    "description": "この活動に関心があり、かつその時間帯に在室していそうなメンバー",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/service.BoardPerson"
@@ -435,20 +435,13 @@ const docTemplate = `{
         "service.BoardData": {
             "type": "object",
             "properties": {
-                "activities": {
-                    "description": "今日メンバーが揃いそうな活動一覧",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/service.BoardActivity"
-                    }
-                },
                 "currentTime": {
                     "description": "データ生成時点の現在時刻（JST、\"HH:MM\"形式）",
                     "type": "string",
                     "example": "15:04"
                 },
                 "hours": {
-                    "description": "現在時刻から最大4時間ぶんのタイムライン",
+                    "description": "現在時刻から最大4時間ぶんのタイムライン（各時間帯に在室予測メンバーと成立しそうな活動を含む）",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/service.BoardHour"
@@ -467,6 +460,13 @@ const docTemplate = `{
         "service.BoardHour": {
             "type": "object",
             "properties": {
+                "activities": {
+                    "description": "この時間に成立しそうな活動一覧",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/service.BoardActivity"
+                    }
+                },
                 "hour": {
                     "description": "時（JST、0〜23）",
                     "type": "integer",

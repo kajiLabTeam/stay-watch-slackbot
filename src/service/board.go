@@ -33,9 +33,11 @@ type BoardHour struct {
 	Hour int `json:"hour" example:"15"`
 	// この時間に在室していそうな人一覧
 	People []BoardPerson `json:"people"`
+	// この時間に成立しそうな活動一覧
+	Activities []BoardActivity `json:"activities"`
 }
 
-// BoardActivity は今日成立しそうな活動1件を表す
+// BoardActivity はその時間帯に成立しそうな活動1件を表す
 type BoardActivity struct {
 	// イベントID
 	ID uint `json:"id" example:"5"`
@@ -45,7 +47,7 @@ type BoardActivity struct {
 	ImageURL *string `json:"imageUrl" example:"https://example.com/daycast/events/5.png"`
 	// 活動の成立に必要な最低人数
 	MinNumber int `json:"minNumber" example:"3"`
-	// この活動に関心があり、かつ今日来訪しそうなメンバー
+	// この活動に関心があり、かつその時間帯に在室していそうなメンバー
 	Members []BoardPerson `json:"members"`
 }
 
@@ -69,10 +71,8 @@ type BoardData struct {
 	CurrentTime string `json:"currentTime" example:"15:04"`
 	// 在室情報
 	Presence BoardPresence `json:"presence"`
-	// 現在時刻から最大4時間ぶんのタイムライン
+	// 現在時刻から最大4時間ぶんのタイムライン（各時間帯に在室予測メンバーと成立しそうな活動を含む）
 	Hours []BoardHour `json:"hours"`
-	// 今日メンバーが揃いそうな活動一覧
-	Activities []BoardActivity `json:"activities"`
 }
 
 // boardPersonAssign はユーザーの時間帯割当に必要な情報を保持する
@@ -95,12 +95,30 @@ func GetBoardData() (BoardData, error) {
 		return BoardData{}, err
 	}
 
+	activityProbByEventID, err := activityProbabilitiesByEventID(weekday)
+	if err != nil {
+		return BoardData{}, err
+	}
+
 	return BoardData{
 		CurrentTime: now.Format("15:04"),
 		Presence:    BoardPresence{Members: []BoardPresentMember{}},
-		Hours:       buildBoardHours(assigns, now.Hour()),
-		Activities:  buildBoardActivities(events, assigns),
+		Hours:       buildBoardHours(events, assigns, activityProbByEventID, now.Hour()),
 	}, nil
+}
+
+// activityProbabilitiesByEventID は全活動のGMM時間帯確率を EventID をキーにしたマップにして返す
+func activityProbabilitiesByEventID(weekday time.Weekday) (map[uint]ActivityProbability, error) {
+	probs, err := GetAllActivityProbabilities(weekday)
+	if err != nil {
+		return nil, err
+	}
+
+	byEventID := make(map[uint]ActivityProbability, len(probs))
+	for _, p := range probs {
+		byEventID[p.EventID] = p
+	}
+	return byEventID, nil
 }
 
 // boardHourRange は表示する時刻の列を返す
@@ -119,8 +137,8 @@ func boardHourRange(nowHour int) []int {
 	return hours
 }
 
-// buildBoardHours はタイムラインの各列に在室予想者を割り当てる
-func buildBoardHours(assigns []boardPersonAssign, nowHour int) []BoardHour {
+// buildBoardHours はタイムラインの各列に在室予想者と成立しそうな活動を割り当てる
+func buildBoardHours(events []model.Event, assigns []boardPersonAssign, activityProbByEventID map[uint]ActivityProbability, nowHour int) []BoardHour {
 	hourColumns := boardHourRange(nowHour)
 
 	hours := make([]BoardHour, 0, len(hourColumns))
@@ -131,7 +149,11 @@ func buildBoardHours(assigns []boardPersonAssign, nowHour int) []BoardHour {
 				people = append(people, newBoardPerson(a.user))
 			}
 		}
-		hours = append(hours, BoardHour{Hour: hour, People: people})
+		hours = append(hours, BoardHour{
+			Hour:       hour,
+			People:     people,
+			Activities: buildBoardActivitiesForHour(events, assigns, activityProbByEventID, hour),
+		})
 	}
 	return hours
 }
@@ -157,20 +179,27 @@ func isPresentAtHour(a boardPersonAssign, hour int) bool {
 	}
 }
 
-// buildBoardActivities は「関心のあるメンバーが最低人数以上そろいそうな活動」を返す
-// 活動の発生確率（GMM由来）は選別に使わず、人が揃うかどうかだけで判断する
-func buildBoardActivities(events []model.Event, assigns []boardPersonAssign) []BoardActivity {
-	// 今日来訪しそうな人（ArrivalMaybe 以上で足切り済み）
-	comingUsers := make(map[uint]model.User, len(assigns))
+// buildBoardActivitiesForHour は「関心のあるメンバーがその時間帯に在室していそうで、
+// かつ最低人数以上そろいそうな活動」を、その時間のGMM活動確率がしきい値以上のものに絞って返す
+func buildBoardActivitiesForHour(events []model.Event, assigns []boardPersonAssign, activityProbByEventID map[uint]ActivityProbability, hour int) []BoardActivity {
+	// この時間帯に在室していそうな人（ArrivalMaybe 以上で足切り済み）
+	presentUsers := make(map[uint]model.User, len(assigns))
 	for _, a := range assigns {
-		comingUsers[a.user.ID] = a.user
+		if isPresentAtHour(a, hour) {
+			presentUsers[a.user.ID] = a.user
+		}
 	}
 
 	activities := []BoardActivity{}
 	for _, ev := range events {
+		prob, ok := activityProbByEventID[ev.ID]
+		if !ok || prob.Probabilities[hour] < config.Board.ActivityProbability {
+			continue
+		}
+
 		members := []BoardPerson{}
 		for _, eu := range ev.EventUsers {
-			user, ok := comingUsers[eu.UserID]
+			user, ok := presentUsers[eu.UserID]
 			if !ok {
 				continue
 			}
