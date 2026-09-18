@@ -1,6 +1,7 @@
 package service
 
 import (
+	"log"
 	"time"
 
 	"github.com/kajiLabTeam/stay-watch-slackbot/config"
@@ -84,26 +85,38 @@ type boardPersonAssign struct {
 
 // GetBoardData は共有モニター用の表示データを集約して返す
 func GetBoardData() (BoardData, error) {
+	log.Println("[board] GetBoardData: start")
+
 	now := lib.NowJST()
 	weekday := now.Weekday()
+	log.Printf("[board] now=%s weekday=%s", now.Format("2006-01-02 15:04:05"), weekday)
 
 	assigns := collectBoardPeople(weekday)
+	log.Printf("[board] collectBoardPeople: assigns=%d", len(assigns))
 
 	var e model.Event
 	events, err := e.ReadAllWithUsers()
 	if err != nil {
+		log.Printf("[board] ReadAllWithUsers error: %v", err)
 		return BoardData{}, err
 	}
+	log.Printf("[board] ReadAllWithUsers: events=%d", len(events))
 
 	activityProbByEventID, err := activityProbabilitiesByEventID(weekday)
 	if err != nil {
+		log.Printf("[board] activityProbabilitiesByEventID error: %v", err)
 		return BoardData{}, err
 	}
+	log.Printf("[board] activityProbabilitiesByEventID: probabilities=%d", len(activityProbByEventID))
 
+	hours := buildBoardHours(events, assigns, activityProbByEventID, now.Hour())
+	log.Printf("[board] buildBoardHours: hours=%d", len(hours))
+
+	log.Println("[board] GetBoardData: done")
 	return BoardData{
 		CurrentTime: now.Format("15:04"),
 		Presence:    BoardPresence{Members: []BoardPresentMember{}},
-		Hours:       buildBoardHours(events, assigns, activityProbByEventID, now.Hour()),
+		Hours:       hours,
 	}, nil
 }
 
@@ -149,10 +162,12 @@ func buildBoardHours(events []model.Event, assigns []boardPersonAssign, activity
 				people = append(people, newBoardPerson(a.user))
 			}
 		}
+		activities := buildBoardActivitiesForHour(events, assigns, activityProbByEventID, hour)
+		log.Printf("[board] buildBoardHours: hour=%d people=%d activities=%d", hour, len(people), len(activities))
 		hours = append(hours, BoardHour{
 			Hour:       hour,
 			People:     people,
-			Activities: buildBoardActivitiesForHour(events, assigns, activityProbByEventID, hour),
+			Activities: activities,
 		})
 	}
 	return hours
@@ -194,6 +209,8 @@ func buildBoardActivitiesForHour(events []model.Event, assigns []boardPersonAssi
 	for _, ev := range events {
 		prob, ok := activityProbByEventID[ev.ID]
 		if !ok || prob.Probabilities[hour] < config.Board.ActivityProbability {
+			log.Printf("[board] buildBoardActivitiesForHour: hour=%d event=%q(id=%d) skipped by probability gate (prob=%.3f threshold=%.3f)",
+				hour, ev.Name, ev.ID, prob.Probabilities[hour], config.Board.ActivityProbability)
 			continue
 		}
 
@@ -207,8 +224,13 @@ func buildBoardActivitiesForHour(events []model.Event, assigns []boardPersonAssi
 		}
 
 		if len(members) < ev.MinNumber {
+			log.Printf("[board] buildBoardActivitiesForHour: hour=%d event=%q(id=%d) skipped by headcount gate (members=%d minNumber=%d)",
+				hour, ev.Name, ev.ID, len(members), ev.MinNumber)
 			continue
 		}
+
+		log.Printf("[board] buildBoardActivitiesForHour: hour=%d event=%q(id=%d) established (prob=%.3f members=%d)",
+			hour, ev.Name, ev.ID, prob.Probabilities[hour], len(members))
 
 		activities = append(activities, BoardActivity{
 			ID:        ev.ID,
@@ -234,10 +256,13 @@ func collectBoardPeople(weekday time.Weekday) []boardPersonAssign {
 	var u model.User
 	users, err := u.ReadAll()
 	if err != nil || len(users) == 0 {
+		log.Printf("[board] collectBoardPeople: no users (err=%v)", err)
 		return nil
 	}
+	log.Printf("[board] collectBoardPeople: users=%d", len(users))
 
 	probs := GetStayWatchProbability(users, weekday)
+	log.Printf("[board] collectBoardPeople: GetStayWatchProbability results=%d", len(probs))
 
 	// 来訪確率が maybe 閾値以上のユーザーのみ対象
 	var candidates []model.User
@@ -255,12 +280,14 @@ func collectBoardPeople(weekday time.Weekday) []boardPersonAssign {
 		}
 		candidates = append(candidates, user)
 	}
+	log.Printf("[board] collectBoardPeople: candidates(prob>=%.2f)=%d", config.Board.ArrivalMaybe, len(candidates))
 	if len(candidates) == 0 {
 		return nil
 	}
 
 	visitTimes := fetchPredictionTime(candidates, weekday, "visit")
 	departureTimes := fetchPredictionTime(candidates, weekday, "departure")
+	log.Printf("[board] collectBoardPeople: visitTimes=%d departureTimes=%d", len(visitTimes), len(departureTimes))
 
 	visitByID := predictionMinutesByUserID(visitTimes)
 	departureByID := predictionMinutesByUserID(departureTimes)

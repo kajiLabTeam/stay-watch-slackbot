@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -302,12 +303,16 @@ func PostRegisterLogs(c *gin.Context) {
 // @Failure 500 {object} map[string]interface{}
 // @Router /api/board [get]
 func GetBoard(c *gin.Context) {
+	log.Println("[board] GET /api/board: request received")
+
 	board, err := service.GetBoardData()
 	if err != nil {
+		log.Printf("[board] GET /api/board: failed: %v", err)
 		respondError(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 
+	log.Println("[board] GET /api/board: response 200")
 	c.JSON(http.StatusOK, board)
 }
 
