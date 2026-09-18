@@ -263,6 +263,11 @@ func collectBoardPeople(weekday time.Weekday) []boardPersonAssign {
 
 	probs := GetStayWatchProbability(users, weekday)
 	log.Printf("[board] collectBoardPeople: GetStayWatchProbability results=%d", len(probs))
+	for _, p := range probs {
+		log.Printf("[board] collectBoardPeople: userID=%d name=%s probability=%.3f", p.UserID, p.UserName, p.Probability)
+	}
+
+	// 来訪確率が ArrivalMaybe 以上のユーザーのみ対象
 
 	// 来訪確率が maybe 閾値以上のユーザーのみ対象
 	var candidates []model.User
