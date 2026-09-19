@@ -2,6 +2,7 @@ package service
 
 import (
 	"log"
+	"os"
 	"time"
 
 	"github.com/kajiLabTeam/stay-watch-slackbot/config"
@@ -83,11 +84,25 @@ type boardPersonAssign struct {
 	departureMin int // -1 = 予測なし
 }
 
+// boardDebugFixedNow はデバッグ用の固定時刻（2026-09-15 12:00 JST = 火曜日12時）
+// 環境変数 BOARD_DEBUG_FIXED_NOW=true のときのみ、現在時刻の代わりにこの時刻を使う
+var boardDebugFixedNow = time.Date(2026, time.September, 15, 12, 0, 0, 0, lib.JST)
+
+// boardNow はGetBoardDataで使う「現在時刻」を返す
+func boardNow() time.Time {
+	if os.Getenv("BOARD_DEBUG_FIXED_NOW") == "true" {
+		log.Printf("[board] BOARD_DEBUG_FIXED_NOW=true: 現在時刻を %s（%s）として扱う",
+			boardDebugFixedNow.Format("2006-01-02 15:04:05"), boardDebugFixedNow.Weekday())
+		return boardDebugFixedNow
+	}
+	return lib.NowJST()
+}
+
 // GetBoardData は共有モニター用の表示データを集約して返す
 func GetBoardData() (BoardData, error) {
 	log.Println("[board] GetBoardData: start")
 
-	now := lib.NowJST()
+	now := boardNow()
 	weekday := now.Weekday()
 	log.Printf("[board] now=%s weekday=%s", now.Format("2006-01-02 15:04:05"), weekday)
 
