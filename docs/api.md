@@ -397,7 +397,7 @@ curl -X POST http://localhost:8085/api/logs \
 共有モニター(moment-board)用の集約表示データを取得する。
 
 - `hours` は現在時刻を先頭に最大4時間ぶんの在室予想タイムライン。11時より前は11時始まりに丸められ、19時を超える列は出さないため、夜間は列が減っていき最終的に空配列になる。
-- `activities` は「今日来訪しそうなメンバー」が最低人数（`minNumber`）以上そろう活動のみを返す。活動の発生確率は選別に使わない。
+- `hours[].activities` はその時間帯ごとに成立しそうな活動一覧。「その時間帯に在室していそうなメンバー」が最低人数（`minNumber`）以上そろい、かつその時間帯のGMM活動確率が閾値（`BOARD_ACTIVITY_PROBABILITY_THRESHOLD`、デフォルト `0.3`）以上の活動のみを返す。
 - `presence.members` は常に空配列。現在の在室者はフロントが StayWatch から直接取得する。
 - `imageUrl` は画像未登録、またはオブジェクトストレージ未設定の場合に `null` になる。
 
@@ -418,22 +418,22 @@ GET /api/board
       "hour": 15,
       "people": [
         { "name": "enami", "avatarUrl": "https://example.com/avatar.png" }
+      ],
+      "activities": [
+        {
+          "id": 5,
+          "name": "カタン(スタンダート)",
+          "imageUrl": "https://storage.example.com/daycast/events/5.png",
+          "minNumber": 3,
+          "members": [
+            { "name": "hanada", "avatarUrl": "https://example.com/avatar.png" }
+          ]
+        }
       ]
     },
-    { "hour": 16, "people": [] },
-    { "hour": 17, "people": [] },
-    { "hour": 18, "people": [] }
-  ],
-  "activities": [
-    {
-      "id": 5,
-      "name": "カタン(スタンダート)",
-      "imageUrl": "https://storage.example.com/daycast/events/5.png",
-      "minNumber": 3,
-      "members": [
-        { "name": "hanada", "avatarUrl": "https://example.com/avatar.png" }
-      ]
-    }
+    { "hour": 16, "people": [], "activities": [] },
+    { "hour": 17, "people": [], "activities": [] },
+    { "hour": 18, "people": [], "activities": [] }
   ]
 }
 ```
