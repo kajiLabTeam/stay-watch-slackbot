@@ -206,14 +206,16 @@ func PostRegisterEventImageCommand(c *gin.Context) {
 		respondSlackSuccess(c, "登録されている話題がありません。先に /add_event で登録してください。")
 		return
 	}
+	// Slack の static_select は選択肢を100件までしか受け付けない。
+	// 超過分を黙って切り捨てると選べない話題が発生するため、明示的にエラーを返す。
+	if len(events) > slackMaxSelectOptions {
+		log.Printf("event options exceed static_select limit: %d (limit %d)", len(events), slackMaxSelectOptions)
+		respondSlackError(c, fmt.Sprintf("登録されている話題が%d件を超えているため一覧表示できません。管理者に問い合わせてください。（現在%d件）", slackMaxSelectOptions, len(events)))
+		return
+	}
 
 	var options []*slack.OptionBlockObject
 	for _, event := range events {
-		// Slack の static_select は選択肢を100件までしか受け付けない
-		if len(options) >= slackMaxSelectOptions {
-			log.Printf("event options truncated to %d (total %d)", slackMaxSelectOptions, len(events))
-			break
-		}
 		options = append(options, &slack.OptionBlockObject{
 			Text:  slack.NewTextBlockObject("plain_text", truncateRunes(event.Name, slackMaxOptionTextLen), false, false),
 			Value: fmt.Sprintf("%d", event.ID),
