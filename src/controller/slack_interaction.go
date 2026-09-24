@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"strconv"
 	"time"
 
@@ -19,7 +20,32 @@ import (
 const eventImageRegisterTimeout = 2 * time.Minute
 
 func PostSlackInteraction(c *gin.Context) {
-	payload := c.PostForm("payload")
+	body, err := c.GetRawData()
+	if err != nil {
+		respondError(c, http.StatusBadRequest, "bad request")
+		return
+	}
+
+	sv, err := slack.NewSecretsVerifier(c.Request.Header, signingSecret)
+	if err != nil {
+		respondError(c, http.StatusBadRequest, "bad request")
+		return
+	}
+	if _, err := sv.Write(body); err != nil {
+		respondError(c, http.StatusInternalServerError, msgInternalServerError)
+		return
+	}
+	if err := sv.Ensure(); err != nil {
+		respondError(c, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	values, err := url.ParseQuery(string(body))
+	if err != nil {
+		respondError(c, http.StatusBadRequest, "invalid payload")
+		return
+	}
+	payload := values.Get("payload")
 
 	var interaction slack.InteractionCallback
 	if err := json.Unmarshal([]byte(payload), &interaction); err != nil {
