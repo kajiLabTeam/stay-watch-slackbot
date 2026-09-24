@@ -98,6 +98,24 @@ func (m *ProbabilityModel) probabilityAtMinutes(timeMinutes int, weeks int) floa
 	return totalProbability
 }
 
+// TotalWeight は時刻によらない全体の確率質量（timeMinutes→∞ でのCDFの極限）を返す。
+// 深夜0時をまたぐ時間帯（例: 23:30〜翌00:30）の確率を
+// 「全体 - CDF(23:30) + CDF(00:30)」として求める際に使う。
+func (m *ProbabilityModel) TotalWeight(weeks int) float64 {
+	if m.isEmpty {
+		return 0
+	}
+	if m.isSingle {
+		return 1.0 / float64(weeks)
+	}
+
+	total := 0.0
+	for _, c := range m.clusters {
+		total += float64(len(c.Data)) / float64(weeks)
+	}
+	return total
+}
+
 // extractTimes は "2006-01-02 15:04" 形式から時刻部分のみを抽出する（重複排除しない）
 func extractTimes(data []string) ([]string, error) {
 	times := make([]string, 0, len(data))

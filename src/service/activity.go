@@ -171,7 +171,9 @@ func extractStartDatetimes(logs []model.Log) []string {
 }
 
 // calcHourlyProbabilities は各時間帯（JST 0〜23時）の確率を計算する
-// H時 = CDF(H:30) - CDF((H-1):30) で (H-1):30〜H:30 の確率密度合計を求める
+// H時 = CDF(H:30) - CDF((H-1):30) で (H-1):30〜H:30 の確率密度合計を求める。
+// CDFは日をまたいで循環しないため、0時のみ「全体 - CDF(23:30) + CDF(00:30)」として
+// 23:30〜翌00:30の日付境界をまたぐ区間を求める。
 //
 // クラスタリングは重い処理なのでモデルを1度だけ構築し、24時刻ぶんのCDF評価に使い回す
 func calcHourlyProbabilities(datetimeStrings []string, weeks int) []float64 {
@@ -189,10 +191,12 @@ func calcHourlyProbabilities(datetimeStrings []string, weeks int) []float64 {
 		}
 		cdf[hour] = value
 	}
+	total := probModel.TotalWeight(weeks)
 
 	probabilities := make([]float64, 24)
-	for hour := 0; hour < 24; hour++ {
-		probabilities[hour] = clampHourProbability(cdf[hour] - cdf[(hour-1+24)%24])
+	probabilities[0] = clampHourProbability(total - cdf[23] + cdf[0])
+	for hour := 1; hour < 24; hour++ {
+		probabilities[hour] = clampHourProbability(cdf[hour] - cdf[hour-1])
 	}
 	return probabilities
 }
