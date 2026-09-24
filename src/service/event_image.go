@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -63,6 +64,8 @@ func RegisterEventImageFromSlack(ctx context.Context, eventID uint, urlPrivate s
 		return event, err
 	}
 
+	previousKey := event.ImageKey
+
 	key, err := lib.EventImages.PutEventImage(ctx, event.ID, contentType, bytes.NewReader(data))
 	if err != nil {
 		return event, err
@@ -70,6 +73,13 @@ func RegisterEventImageFromSlack(ctx context.Context, eventID uint, urlPrivate s
 
 	if err := event.UpdateImageKey(key); err != nil {
 		return event, fmt.Errorf("failed to update image_key of event %d: %w", eventID, err)
+	}
+
+	// 拡張子が変わると新しいキーになるため、古いオブジェクトが残らないよう削除する
+	if previousKey != nil && *previousKey != "" && *previousKey != key {
+		if err := lib.EventImages.DeleteEventImage(ctx, *previousKey); err != nil {
+			log.Printf("failed to delete previous event image (event %d, key %s): %v", eventID, *previousKey, err)
+		}
 	}
 	return event, nil
 }

@@ -20,6 +20,8 @@ type EventImageStore interface {
 	PutEventImage(ctx context.Context, eventID uint, contentType string, r io.Reader) (key string, err error)
 	// PublicURL はキーに対応する公開URLを返す。未設定・キー未登録の場合は空文字を返す
 	PublicURL(key string) string
+	// DeleteEventImage はキーに対応するオブジェクトを削除する。キーが空の場合は何もしない
+	DeleteEventImage(ctx context.Context, key string) error
 }
 
 // EventImages は活動画像ストア。S3系の環境変数が未設定の場合は
@@ -48,6 +50,8 @@ func (disabledEventImageStore) PutEventImage(_ context.Context, _ uint, _ string
 
 func (disabledEventImageStore) PublicURL(_ string) string { return "" }
 
+func (disabledEventImageStore) DeleteEventImage(_ context.Context, _ string) error { return nil }
+
 // s3EventImageStore は S3互換ストレージ（RustFS）への実装
 type s3EventImageStore struct {
 	client        *s3.Client
@@ -72,7 +76,8 @@ func newS3EventImageStore(cfg config.S3Config) *s3EventImageStore {
 }
 
 // PutEventImage は events/{eventID}.{ext} のキーで画像を保存する。
-// キーが決定的なため、同一イベントの再登録は自然に上書きになる。
+// 拡張子はcontent-typeに依存するため、同一イベントでも形式を変えて
+// 再登録すると別キーになる（呼び出し側で旧キーの削除が必要）。
 func (s *s3EventImageStore) PutEventImage(ctx context.Context, eventID uint, contentType string, r io.Reader) (string, error) {
 	ext, err := ExtensionForImageContentType(contentType)
 	if err != nil {
@@ -99,6 +104,20 @@ func (s *s3EventImageStore) PublicURL(key string) string {
 		return ""
 	}
 	return s.publicBaseURL + "/" + strings.TrimLeft(key, "/")
+}
+
+// DeleteEventImage はキーに対応するオブジェクトを削除する。キーが空の場合は何もしない
+func (s *s3EventImageStore) DeleteEventImage(ctx context.Context, key string) error {
+	if key == "" {
+		return nil
+	}
+	if _, err := s.client.DeleteObject(ctx, &s3.DeleteObjectInput{
+		Bucket: aws.String(s.bucket),
+		Key:    aws.String(key),
+	}); err != nil {
+		return fmt.Errorf("failed to delete object %s: %w", key, err)
+	}
+	return nil
 }
 
 // ExtensionForImageContentType は content-type から拡張子を決める。
