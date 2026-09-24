@@ -19,6 +19,13 @@ import (
 // Slack への3秒応答とは別に、バックグラウンド処理が無限に残らないようにするためのもの。
 const eventImageRegisterTimeout = 2 * time.Minute
 
+// maxConcurrentEventImageJobs は同時に実行する画像登録ジョブ数の上限。
+// 1ジョブが最大10MiBをメモリに保持しうるため、大量の同時送信によるメモリ枯渇を防ぐ。
+const maxConcurrentEventImageJobs = 4
+
+// eventImageJobSlots は実行中の画像登録ジョブ数を制限するセマフォ
+var eventImageJobSlots = make(chan struct{}, maxConcurrentEventImageJobs)
+
 func PostSlackInteraction(c *gin.Context) {
 	body, err := c.GetRawData()
 	if err != nil {
@@ -196,8 +203,20 @@ func handleRegisterEventImage(c *gin.Context, interaction slack.InteractionCallb
 	}
 	file := files[0]
 
-	log.Printf("register_event_image: accepted (event %d, mimetype %s)", eventID, file.Mimetype)
-	go registerEventImageAsync(uint(eventID), file.URLPrivate, file.Mimetype, responseURL)
+	select {
+	case eventImageJobSlots <- struct{}{}:
+		log.Printf("register_event_image: accepted (event %d, mimetype %s)", eventID, file.Mimetype)
+		go func() {
+			defer func() { <-eventImageJobSlots }()
+			registerEventImageAsync(uint(eventID), file.URLPrivate, file.Mimetype, responseURL)
+		}()
+	default:
+		log.Printf("register_event_image: rejected, too many concurrent jobs (event %d)", eventID)
+		c.JSON(http.StatusOK, slack.NewErrorsViewSubmissionResponse(map[string]string{
+			"image_block": "現在処理が混み合っています。しばらくしてから再度お試しください。",
+		}))
+		return
+	}
 
 	// モーダルを閉じる。view_submission では空ボディの200が正
 	c.Status(http.StatusOK)
