@@ -411,6 +411,7 @@ const docTemplate = `{
                 "imageUrl": {
                     "description": "活動の画像URL。未登録の場合は null",
                     "type": "string",
+                    "x-nullable": "true",
                     "example": "https://example.com/daycast/events/5.png"
                 },
                 "members": {

@@ -44,7 +44,7 @@ type BoardActivity struct {
 	// 活動（イベント）名
 	Name string `json:"name" example:"人狼"`
 	// 活動の画像URL。未登録の場合は null
-	ImageURL *string `json:"imageUrl" example:"https://example.com/daycast/events/5.png"`
+	ImageURL *string `json:"imageUrl" example:"https://example.com/daycast/events/5.png" extensions:"x-nullable=true"`
 	// 活動の成立に必要な最低人数
 	MinNumber int `json:"minNumber" example:"3"`
 	// この活動に関心があり、かつその時間帯に在室していそうなメンバー

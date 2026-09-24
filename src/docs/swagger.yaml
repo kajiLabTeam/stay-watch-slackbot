@@ -70,6 +70,7 @@ definitions:
         description: 活動の画像URL。未登録の場合は null
         example: https://example.com/daycast/events/5.png
         type: string
+        x-nullable: "true"
       members:
         description: この活動に関心があり、かつその時間帯に在室していそうなメンバー
         items:
