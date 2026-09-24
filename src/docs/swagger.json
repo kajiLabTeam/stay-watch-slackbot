@@ -494,7 +494,7 @@
             "type": "object",
             "properties": {
                 "members": {
-                    "description": "在室中メンバーの配列（常に空配列）",
+                    "description": "現在在室中のメンバーの配列（取得失敗時は空配列）",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/service.BoardPresentMember"

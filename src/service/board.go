@@ -1,6 +1,7 @@
 package service
 
 import (
+	"log"
 	"time"
 
 	"github.com/kajiLabTeam/stay-watch-slackbot/config"
@@ -59,9 +60,9 @@ type BoardPresentMember struct {
 	AvatarURL string `json:"avatarUrl" example:"https://example.com/avatar.png"`
 }
 
-// BoardPresence は在室情報を表す（在室はフロントがStayWatchから直接取得するため常に空）
+// BoardPresence は在室情報を表す（StayWatchの在室者に、DBのアイコンURLを補って返す）
 type BoardPresence struct {
-	// 在室中メンバーの配列（常に空配列）
+	// 現在在室中のメンバーの配列（取得失敗時は空配列）
 	Members []BoardPresentMember `json:"members"`
 }
 
@@ -102,9 +103,42 @@ func GetBoardData() (BoardData, error) {
 
 	return BoardData{
 		CurrentTime: now.Format("15:04"),
-		Presence:    BoardPresence{Members: []BoardPresentMember{}},
+		Presence:    BoardPresence{Members: buildBoardPresence()},
 		Hours:       buildBoardHours(events, assigns, activityProbByEventID, now.Hour()),
 	}, nil
+}
+
+// buildBoardPresence は StayWatch の現在の在室者を取得し、DBのアイコンURLを補って返す。
+// 取得に失敗しても board 全体は返せるよう、失敗時は空配列にする
+func buildBoardPresence() []BoardPresentMember {
+	members := []BoardPresentMember{}
+
+	stayers, err := GetStayWatchPresence()
+	if err != nil {
+		log.Printf("failed to fetch presence from StayWatch: %v", err)
+		return members
+	}
+
+	var u model.User
+	users, err := u.ReadAll()
+	if err != nil {
+		log.Printf("failed to read users for presence: %v", err)
+		users = nil
+	}
+	userByStayWatchID := make(map[int64]model.User, len(users))
+	for _, user := range users {
+		userByStayWatchID[user.StayWatchID] = user
+	}
+
+	for _, s := range stayers {
+		member := BoardPresentMember{Name: s.Name}
+		if user, ok := userByStayWatchID[s.ID]; ok {
+			member.Name = user.Name
+			member.AvatarURL = user.IconURL
+		}
+		members = append(members, member)
+	}
+	return members
 }
 
 // activityProbabilitiesByEventID は全活動のGMM時間帯確率を EventID をキーにしたマップにして返す

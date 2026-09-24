@@ -18,6 +18,7 @@ func getEnv(key, defaultValue string) string {
 type StayWatch struct {
 	BaseURL     string
 	Users       string
+	Presence    string
 	Probability string
 	Time        string
 	APIKey      string
@@ -83,6 +84,7 @@ var (
 func init() {
 	staywatch.BaseURL = getEnv("STAYWATCH_URL", "")
 	staywatch.Users = getEnv("STAYWATCH_USERS_PATH", "")
+	staywatch.Presence = getEnv("STAYWATCH_PRESENCE_PATH", "/api/v1/stayers")
 	staywatch.Probability = getEnv("STAYWATCH_PROBABILITY_PATH", "")
 	staywatch.Time = getEnv("STAYWATCH_TIME_PATH", "")
 	staywatch.APIKey = getEnv("STAYWATCH_API_KEY", "")
