@@ -1,23 +1,68 @@
 package controller
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
+	"log"
 	"net/http"
+	"net/url"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/kajiLabTeam/stay-watch-slackbot/service"
 	"github.com/slack-go/slack"
 )
 
-func PostSlackInteraction(c *gin.Context) {
-	payload := c.PostForm("payload")
+// eventImageRegisterTimeout は画像取得〜保存にかける上限時間。
+// Slack への3秒応答とは別に、バックグラウンド処理が無限に残らないようにするためのもの。
+const eventImageRegisterTimeout = 2 * time.Minute
 
-	var interaction slack.InteractionCallback
-	if err := json.Unmarshal([]byte(payload), &interaction); err != nil {
+// maxConcurrentEventImageJobs は同時に実行する画像登録ジョブ数の上限。
+// 1ジョブが最大10MiBをメモリに保持しうるため、大量の同時送信によるメモリ枯渇を防ぐ。
+const maxConcurrentEventImageJobs = 4
+
+// eventImageJobSlots は実行中の画像登録ジョブ数を制限するセマフォ
+var eventImageJobSlots = make(chan struct{}, maxConcurrentEventImageJobs)
+
+func PostSlackInteraction(c *gin.Context) {
+	body, err := c.GetRawData()
+	if err != nil {
+		respondError(c, http.StatusBadRequest, "bad request")
+		return
+	}
+
+	sv, err := slack.NewSecretsVerifier(c.Request.Header, signingSecret)
+	if err != nil {
+		respondError(c, http.StatusBadRequest, "bad request")
+		return
+	}
+	if _, err := sv.Write(body); err != nil {
+		respondError(c, http.StatusInternalServerError, msgInternalServerError)
+		return
+	}
+	if err := sv.Ensure(); err != nil {
+		respondError(c, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	values, err := url.ParseQuery(string(body))
+	if err != nil {
 		respondError(c, http.StatusBadRequest, "invalid payload")
 		return
 	}
+	payload := values.Get("payload")
+
+	var interaction slack.InteractionCallback
+	if err := json.Unmarshal([]byte(payload), &interaction); err != nil {
+		log.Printf("slack interaction: invalid payload: %v", err)
+		respondError(c, http.StatusBadRequest, "invalid payload")
+		return
+	}
+
+	log.Printf("slack interaction: type=%s callback_id=%s block_actions=%d",
+		interaction.Type, interaction.View.CallbackID, len(interaction.ActionCallback.BlockActions))
 
 	if len(interaction.ActionCallback.BlockActions) > 0 {
 		handleBlockAction(c, interaction)
@@ -87,6 +132,8 @@ func handleViewSubmission(c *gin.Context, interaction slack.InteractionCallback)
 		handleRegisterEvent(c, interaction)
 	case "select_events":
 		handleSelectEvents(c, interaction)
+	case "register_event_image":
+		handleRegisterEventImage(c, interaction)
 	default:
 		c.JSON(http.StatusOK, gin.H{})
 	}
@@ -128,4 +175,75 @@ func handleSelectEvents(c *gin.Context, interaction slack.InteractionCallback) {
 
 	_, _, _ = api.PostMessage("", slack.MsgOptionReplaceOriginal(responseURL), slack.MsgOptionText("登録が完了しました。", false))
 	c.JSON(http.StatusOK, gin.H{})
+}
+
+// handleRegisterEventImage は選択されたイベントに Slack アップロード画像を紐づける。
+//
+// Slack は view_submission に3秒以内の応答を要求するが、画像のダウンロードと
+// オブジェクトストレージへの保存はそれを超えうる。先に 200 を返してモーダルを閉じ、
+// 実際の保存はバックグラウンドで行って response_url へ結果を投稿する。
+func handleRegisterEventImage(c *gin.Context, interaction slack.InteractionCallback) {
+	values := interaction.View.State.Values
+	responseURL := interaction.View.PrivateMetadata
+
+	eventID, err := strconv.ParseUint(values["event_select_block"]["event_select"].SelectedOption.Value, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusOK, slack.NewErrorsViewSubmissionResponse(map[string]string{
+			"event_select_block": "話題を選択してください。",
+		}))
+		return
+	}
+
+	files := values["image_block"]["image_input"].Files
+	if len(files) == 0 {
+		c.JSON(http.StatusOK, slack.NewErrorsViewSubmissionResponse(map[string]string{
+			"image_block": "画像が選択されていません。",
+		}))
+		return
+	}
+	file := files[0]
+
+	select {
+	case eventImageJobSlots <- struct{}{}:
+		log.Printf("register_event_image: accepted (event %d, mimetype %s)", eventID, file.Mimetype)
+		go func() {
+			defer func() { <-eventImageJobSlots }()
+			registerEventImageAsync(uint(eventID), file.URLPrivate, file.Mimetype, responseURL)
+		}()
+	default:
+		log.Printf("register_event_image: rejected, too many concurrent jobs (event %d)", eventID)
+		c.JSON(http.StatusOK, slack.NewErrorsViewSubmissionResponse(map[string]string{
+			"image_block": "現在処理が混み合っています。しばらくしてから再度お試しください。",
+		}))
+		return
+	}
+
+	// モーダルを閉じる。view_submission では空ボディの200が正
+	c.Status(http.StatusOK)
+}
+
+// registerEventImageAsync は画像の保存を行い、結果を response_url へ投稿する。
+// リクエストのライフサイクルから外れるため、独自のタイムアウト付き context を使う。
+func registerEventImageAsync(eventID uint, urlPrivate, mimetype, responseURL string) {
+	ctx, cancel := context.WithTimeout(context.Background(), eventImageRegisterTimeout)
+	defer cancel()
+
+	event, err := service.RegisterEventImageFromSlack(ctx, eventID, urlPrivate, mimetype)
+	if err != nil {
+		log.Printf("failed to register event image (event %d): %v", eventID, err)
+		postToResponseURL(responseURL, "画像の登録に失敗しました: "+err.Error())
+		return
+	}
+
+	postToResponseURL(responseURL, fmt.Sprintf("「%s」の画像を登録しました。", event.Name))
+}
+
+// postToResponseURL は Slack の response_url へメッセージを投稿する
+func postToResponseURL(responseURL, text string) {
+	if responseURL == "" {
+		return
+	}
+	if _, _, err := api.PostMessage("", slack.MsgOptionReplaceOriginal(responseURL), slack.MsgOptionText(text, false)); err != nil {
+		log.Printf("failed to post to response_url: %v", err)
+	}
 }

@@ -1,13 +1,22 @@
 package controller
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/kajiLabTeam/stay-watch-slackbot/service"
 	"github.com/slack-go/slack"
+)
+
+const (
+	// slackMaxSelectOptions は static_select が受け付ける選択肢の上限
+	slackMaxSelectOptions = 100
+	// slackMaxOptionTextLen は選択肢の表示テキストの上限文字数
+	slackMaxOptionTextLen = 75
 )
 
 func PostRegisterUserCommand(c *gin.Context) {
@@ -177,4 +186,99 @@ func PostRegisterCorrespondCommand(c *gin.Context) {
 		return
 	}
 	respondSlackSuccess(c, "モーダルを開きました。")
+}
+
+// PostRegisterEventImageCommand は活動画像の登録モーダルを開く
+func PostRegisterEventImageCommand(c *gin.Context) {
+	s, err := slack.SlashCommandParse(c.Request)
+	if err != nil {
+		log.Printf("Error parsing slash command: %v", err)
+		respondError(c, http.StatusBadRequest, "bad request")
+		return
+	}
+
+	events, err := service.GetEvents()
+	if err != nil {
+		respondError(c, http.StatusInternalServerError, msgInternalServerError)
+		return
+	}
+	if len(events) == 0 {
+		respondSlackSuccess(c, "登録されている話題がありません。先に /add_event で登録してください。")
+		return
+	}
+	// Slack の static_select は選択肢を100件までしか受け付けない。
+	// 超過分を黙って切り捨てると選べない話題が発生するため、明示的にエラーを返す。
+	if len(events) > slackMaxSelectOptions {
+		log.Printf("event options exceed static_select limit: %d (limit %d)", len(events), slackMaxSelectOptions)
+		respondSlackError(c, fmt.Sprintf("登録されている話題が%d件を超えているため一覧表示できません。管理者に問い合わせてください。（現在%d件）", slackMaxSelectOptions, len(events)))
+		return
+	}
+
+	var options []*slack.OptionBlockObject
+	for _, event := range events {
+		options = append(options, &slack.OptionBlockObject{
+			Text:  slack.NewTextBlockObject("plain_text", truncateRunes(event.Name, slackMaxOptionTextLen), false, false),
+			Value: fmt.Sprintf("%d", event.ID),
+		})
+	}
+
+	blocks := []slack.Block{
+		slack.NewInputBlock(
+			"event_select_block",
+			slack.NewTextBlockObject("plain_text", "話題を選択してください", false, false),
+			nil,
+			slack.NewOptionsSelectBlockElement(slack.OptTypeStatic, nil, "event_select", options...),
+		),
+		slack.NewInputBlock(
+			"image_block",
+			slack.NewTextBlockObject("plain_text", "画像をアップロードしてください", false, false),
+			slack.NewTextBlockObject("plain_text", "png / jpg / jpeg、1ファイルのみ", false, false),
+			slack.NewFileInputBlockElement("image_input").
+				WithFileTypes("png", "jpg", "jpeg").
+				WithMaxFiles(1),
+		),
+	}
+
+	modalRequest := slack.ModalViewRequest{
+		Type:            slack.VTModal,
+		CallbackID:      "register_event_image",
+		Title:           slack.NewTextBlockObject("plain_text", "活動画像の登録", false, false),
+		Submit:          slack.NewTextBlockObject("plain_text", "送信", false, false),
+		Close:           slack.NewTextBlockObject("plain_text", "閉じる", false, false),
+		PrivateMetadata: s.ResponseURL,
+		Blocks: slack.Blocks{
+			BlockSet: blocks,
+		},
+	}
+	if _, err := api.OpenView(s.TriggerID, modalRequest); err != nil {
+		log.Printf("Error opening view: %s", describeSlackError(err))
+		respondError(c, http.StatusInternalServerError, msgInternalServerError)
+		return
+	}
+	respondSlackSuccess(c, "モーダルを開きました。")
+}
+
+// describeSlackError は Slack API のエラーを詳細つきで文字列化する。
+// Slack は "invalid_arguments" のような大雑把なコードとは別に、
+// response_metadata.messages に具体的な理由を入れてくる。
+func describeSlackError(err error) string {
+	var slackErr slack.SlackErrorResponse
+	if !errors.As(err, &slackErr) {
+		return err.Error()
+	}
+
+	detail := slackErr.Err
+	if msgs := slackErr.ResponseMetadata.Messages; len(msgs) > 0 {
+		detail += " (" + strings.Join(msgs, " / ") + ")"
+	}
+	return detail
+}
+
+// truncateRunes は文字列を最大 max 文字（ルーン単位）に切り詰める
+func truncateRunes(s string, max int) string {
+	r := []rune(s)
+	if len(r) <= max {
+		return s
+	}
+	return string(r[:max])
 }

@@ -85,22 +85,29 @@ type ServerConfig struct {
 	TrustedProxies []string
 }
 
-// BoardThresholds はboard APIの段階化閾値を保持する
+// BoardThresholds はboard APIの来訪見込み閾値を保持する
 type BoardThresholds struct {
-	LikelihoodHigh float64
-	LikelihoodMid  float64
-	LikelihoodMin  float64
-	ArrivalLikely  float64
-	ArrivalMaybe   float64
+	// ArrivalLikely はレスポンスには出さないが、閾値の再調整余地を残すため保持する
+	ArrivalLikely float64
+	// ArrivalMaybe は「今日来そうな人」の足切りに使う
+	ArrivalMaybe float64
+	// ActivityProbability は時間帯別の活動成立判定に使うGMM活動確率のしきい値
+	ActivityProbability float64
 }
 
-// BoardTimeBlockConfig は1時間帯（昼/夕方/夜など）の設定を保持する
-type BoardTimeBlockConfig struct {
-	ID         string
-	Label      string
-	RangeLabel string
-	StartMin   int
-	EndMin     int
+// S3Config はS3互換オブジェクトストレージ（RustFS）の設定を保持する
+type S3Config struct {
+	Endpoint      string
+	Region        string
+	AccessKeyID   string
+	SecretKey     string
+	Bucket        string
+	PublicBaseURL string
+}
+
+// Enabled はアップロードに必要な設定がそろっているかを返す
+func (c S3Config) Enabled() bool {
+	return c.Endpoint != "" && c.AccessKeyID != "" && c.SecretKey != "" && c.Bucket != ""
 }
 
 // DBConfig はDB接続の設定を保持する
@@ -122,7 +129,7 @@ var (
 	CORS       CORSConfig
 	Server     ServerConfig
 	Board      BoardThresholds
-	TimeBlocks []BoardTimeBlockConfig
+	S3         S3Config
 	DB         DBConfig
 	HTTPClient HTTPClientConfig
 )
@@ -152,35 +159,18 @@ func init() {
 	}
 
 	Board = BoardThresholds{
-		LikelihoodHigh: getEnvFloat("BOARD_LIKELIHOOD_HIGH_THRESHOLD", 0.5),
-		LikelihoodMid:  getEnvFloat("BOARD_LIKELIHOOD_MID_THRESHOLD", 0.3),
-		LikelihoodMin:  getEnvFloat("BOARD_LIKELIHOOD_MIN_THRESHOLD", 0.1),
-		ArrivalLikely:  getEnvFloat("BOARD_ARRIVAL_LIKELY_THRESHOLD", 0.5),
-		ArrivalMaybe:   getEnvFloat("BOARD_ARRIVAL_MAYBE_THRESHOLD", 0.3),
+		ArrivalLikely:       getEnvFloat("BOARD_ARRIVAL_LIKELY_THRESHOLD", 0.5),
+		ArrivalMaybe:        getEnvFloat("BOARD_ARRIVAL_MAYBE_THRESHOLD", 0.3),
+		ActivityProbability: getEnvFloat("BOARD_ACTIVITY_PROBABILITY_THRESHOLD", 0.3),
 	}
 
-	TimeBlocks = []BoardTimeBlockConfig{
-		{
-			ID:         "noon",
-			Label:      "昼",
-			RangeLabel: "12〜15時",
-			StartMin:   getEnvInt("BOARD_NOON_START_MIN", 12*60),
-			EndMin:     getEnvInt("BOARD_NOON_END_MIN", 15*60),
-		},
-		{
-			ID:         "evening",
-			Label:      "夕方",
-			RangeLabel: "15〜19時",
-			StartMin:   getEnvInt("BOARD_EVENING_START_MIN", 15*60),
-			EndMin:     getEnvInt("BOARD_EVENING_END_MIN", 19*60),
-		},
-		{
-			ID:         "night",
-			Label:      "夜",
-			RangeLabel: "19時〜",
-			StartMin:   getEnvInt("BOARD_NIGHT_START_MIN", 19*60),
-			EndMin:     getEnvInt("BOARD_NIGHT_END_MIN", 22*60),
-		},
+	S3 = S3Config{
+		Endpoint:      getEnv("S3_ENDPOINT", ""),
+		Region:        getEnv("S3_REGION", "us-east-1"),
+		AccessKeyID:   getEnv("S3_ACCESS_KEY_ID", ""),
+		SecretKey:     getEnv("S3_SECRET_ACCESS_KEY", ""),
+		Bucket:        getEnv("S3_BUCKET", ""),
+		PublicBaseURL: getEnv("S3_PUBLIC_BASE_URL", ""),
 	}
 
 	DB = DBConfig{

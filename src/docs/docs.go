@@ -326,28 +326,41 @@ const docTemplate = `{
             ],
             "properties": {
                 "event_id": {
-                    "type": "string"
+                    "description": "対象のEventのID（文字列で指定）",
+                    "type": "string",
+                    "example": "1"
                 },
                 "event_time": {
-                    "description": "RFC3339形式 JST (例: \"2006-01-02T15:04:05+09:00\")",
-                    "type": "string"
+                    "description": "イベント発生日時。RFC3339形式のJST",
+                    "type": "string",
+                    "example": "2006-01-02T15:04:05+09:00"
                 },
                 "participate_users": {
-                    "description": "参加メンバの stay_watch_id（空可）",
+                    "description": "参加メンバのstay_watch_idリスト（空可）",
                     "type": "array",
                     "items": {
                         "type": "integer"
-                    }
+                    },
+                    "example": [
+                        1,
+                        2
+                    ]
                 },
                 "room_users": {
-                    "description": "在室メンバの stay_watch_id（空可）",
+                    "description": "在室メンバのstay_watch_idリスト（空可）",
                     "type": "array",
                     "items": {
                         "type": "integer"
-                    }
+                    },
+                    "example": [
+                        3,
+                        4
+                    ]
                 },
                 "status_id": {
-                    "type": "integer"
+                    "description": "対象のStatusのID",
+                    "type": "integer",
+                    "example": 2
                 }
             }
         },
@@ -358,6 +371,7 @@ const docTemplate = `{
             ],
             "properties": {
                 "logs": {
+                    "description": "登録するログエントリの配列（1件以上）",
                     "type": "array",
                     "minItems": 1,
                     "items": {
@@ -373,26 +387,49 @@ const docTemplate = `{
             ],
             "properties": {
                 "names": {
+                    "description": "登録するStatus名の配列（1件以上、重複不可）",
                     "type": "array",
                     "minItems": 1,
                     "items": {
                         "type": "string"
-                    }
+                    },
+                    "example": [
+                        "作業中",
+                        "休憩中"
+                    ]
                 }
             }
         },
         "service.BoardActivity": {
             "type": "object",
             "properties": {
-                "headcount": {
-                    "type": "integer"
+                "id": {
+                    "description": "イベントID",
+                    "type": "integer",
+                    "example": 5
                 },
-                "likelihood": {
-                    "description": "\"high\" | \"mid\" | \"low\"",
-                    "type": "string"
+                "imageUrl": {
+                    "description": "活動の画像URL。未登録の場合は null",
+                    "type": "string",
+                    "x-nullable": "true",
+                    "example": "https://example.com/daycast/events/5.png"
+                },
+                "members": {
+                    "description": "この活動に関心があり、かつその時間帯に在室していそうなメンバー",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/service.BoardPerson"
+                    }
+                },
+                "minNumber": {
+                    "description": "活動の成立に必要な最低人数",
+                    "type": "integer",
+                    "example": 3
                 },
                 "name": {
-                    "type": "string"
+                    "description": "活動（イベント）名",
+                    "type": "string",
+                    "example": "人狼"
                 }
             }
         },
@@ -400,15 +437,47 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "currentTime": {
-                    "type": "string"
+                    "description": "データ生成時点の現在時刻（JST、\"HH:MM\"形式）",
+                    "type": "string",
+                    "example": "15:04"
                 },
-                "presence": {
-                    "$ref": "#/definitions/service.BoardPresence"
-                },
-                "timeBlocks": {
+                "hours": {
+                    "description": "現在時刻から最大4時間ぶんのタイムライン（各時間帯に在室予測メンバーと成立しそうな活動を含む）",
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/service.BoardTimeBlock"
+                        "$ref": "#/definitions/service.BoardHour"
+                    }
+                },
+                "presence": {
+                    "description": "在室情報",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/service.BoardPresence"
+                        }
+                    ]
+                }
+            }
+        },
+        "service.BoardHour": {
+            "type": "object",
+            "properties": {
+                "activities": {
+                    "description": "この時間に成立しそうな活動一覧",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/service.BoardActivity"
+                    }
+                },
+                "hour": {
+                    "description": "時（JST、0〜23）",
+                    "type": "integer",
+                    "example": 15
+                },
+                "people": {
+                    "description": "この時間に在室していそうな人一覧",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/service.BoardPerson"
                     }
                 }
             }
@@ -416,15 +485,15 @@ const docTemplate = `{
         "service.BoardPerson": {
             "type": "object",
             "properties": {
-                "arrival": {
-                    "description": "\"likely\" | \"maybe\"",
-                    "type": "string"
-                },
                 "avatarUrl": {
-                    "type": "string"
+                    "description": "アイコン画像URL",
+                    "type": "string",
+                    "example": "https://example.com/avatar.png"
                 },
                 "name": {
-                    "type": "string"
+                    "description": "ユーザー名",
+                    "type": "string",
+                    "example": "山田太郎"
                 }
             }
         },
@@ -432,6 +501,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "members": {
+                    "description": "在室中メンバーの配列（常に空配列）",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/service.BoardPresentMember"
@@ -443,40 +513,14 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "avatarUrl": {
-                    "type": "string"
+                    "description": "アイコン画像URL",
+                    "type": "string",
+                    "example": "https://example.com/avatar.png"
                 },
                 "name": {
-                    "type": "string"
-                }
-            }
-        },
-        "service.BoardTimeBlock": {
-            "type": "object",
-            "properties": {
-                "activities": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/service.BoardActivity"
-                    }
-                },
-                "id": {
-                    "description": "\"noon\" | \"evening\" | \"night\"",
-                    "type": "string"
-                },
-                "isNow": {
-                    "type": "boolean"
-                },
-                "label": {
-                    "type": "string"
-                },
-                "people": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/service.BoardPerson"
-                    }
-                },
-                "range": {
-                    "type": "string"
+                    "description": "ユーザー名",
+                    "type": "string",
+                    "example": "山田太郎"
                 }
             }
         }

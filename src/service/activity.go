@@ -12,6 +12,7 @@ import (
 
 // ActivityProbability は活動名と1時間ごとの発生確率を表す
 type ActivityProbability struct {
+	EventID       uint      `json:"event_id"`
 	ActivityName  string    `json:"activity_name"`
 	Probabilities []float64 `json:"probabilities"` // length 24, index = hour (0-23 JST), value = 0.0〜1.0
 }
@@ -170,30 +171,38 @@ func extractStartDatetimes(logs []model.Log) []string {
 }
 
 // calcHourlyProbabilities は各時間帯（JST 0〜23時）の確率を計算する
-// H時 = CDF(H:30) - CDF((H-1):30) で (H-1):30〜H:30 の確率密度合計を求める
+// H時 = CDF(H:30) - CDF((H-1):30) で (H-1):30〜H:30 の確率密度合計を求める。
+// CDFは日をまたいで循環しないため、0時のみ「全体 - CDF(23:30) + CDF(00:30)」として
+// 23:30〜翌00:30の日付境界をまたぐ区間を求める。
+//
+// クラスタリングは重い処理なのでモデルを1度だけ構築し、24時刻ぶんのCDF評価に使い回す
 func calcHourlyProbabilities(datetimeStrings []string, weeks int) []float64 {
-	probabilities := make([]float64, 24)
+	probModel, err := prediction.NewProbabilityModelFromDatetimes(datetimeStrings)
+	if err != nil {
+		return make([]float64, 24)
+	}
+
+	// HH:30（H = 0〜23）の24点のCDFを求める。各時間帯の確率はこの差分で得られる
+	cdf := make([]float64, 24)
 	for hour := 0; hour < 24; hour++ {
-		probabilities[hour] = calcHourProbability(datetimeStrings, hour, weeks)
+		value, err := probModel.Probability(fmt.Sprintf("%02d:30", hour), weeks)
+		if err != nil {
+			return make([]float64, 24)
+		}
+		cdf[hour] = value
+	}
+	total := probModel.TotalWeight(weeks)
+
+	probabilities := make([]float64, 24)
+	probabilities[0] = clampHourProbability(total - cdf[23] + cdf[0])
+	for hour := 1; hour < 24; hour++ {
+		probabilities[hour] = clampHourProbability(cdf[hour] - cdf[hour-1])
 	}
 	return probabilities
 }
 
-// calcHourProbability は指定時間帯の確率を計算する
-func calcHourProbability(datetimeStrings []string, hour int, weeks int) float64 {
-	endTimeJST := fmt.Sprintf("%02d:30", hour)
-	startTimeJST := fmt.Sprintf("%02d:30", (hour-1+24)%24)
-
-	cdfEnd, err := prediction.GetProbabilityFromDatetimes(datetimeStrings, endTimeJST, weeks)
-	if err != nil {
-		return 0.0
-	}
-	cdfStart, err := prediction.GetProbabilityFromDatetimes(datetimeStrings, startTimeJST, weeks)
-	if err != nil {
-		return 0.0
-	}
-
-	prob := cdfEnd - cdfStart
+// clampHourProbability は時間帯確率を 0.0〜1.0 の範囲に丸める
+func clampHourProbability(prob float64) float64 {
 	if math.IsNaN(prob) || math.IsInf(prob, 0) || prob < 0 {
 		return 0.0
 	}
@@ -207,16 +216,17 @@ func calcHourProbability(datetimeStrings []string, hour int, weeks int) float64 
 func calcEventProbability(ev model.Event, dayOfWeek time.Weekday) ActivityProbability {
 	logs, err := model.ReadLogsByEventIDAndDayOfWeek(ev.ID, dayOfWeek)
 	if err != nil || len(logs) == 0 {
-		return ActivityProbability{ActivityName: ev.Name, Probabilities: make([]float64, 24)}
+		return ActivityProbability{EventID: ev.ID, ActivityName: ev.Name, Probabilities: make([]float64, 24)}
 	}
 
 	weeks := calculateWeeks(logs)
 	datetimeStrings := extractStartDatetimes(logs)
 	if len(datetimeStrings) == 0 {
-		return ActivityProbability{ActivityName: ev.Name, Probabilities: make([]float64, 24)}
+		return ActivityProbability{EventID: ev.ID, ActivityName: ev.Name, Probabilities: make([]float64, 24)}
 	}
 
 	return ActivityProbability{
+		EventID:       ev.ID,
 		ActivityName:  ev.Name,
 		Probabilities: calcHourlyProbabilities(datetimeStrings, weeks),
 	}

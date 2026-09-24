@@ -17,20 +17,27 @@ const (
 
 // RegisterStatusesRequest はStatus一括登録のリクエストボディ
 type RegisterStatusesRequest struct {
-	Names []string `json:"names" binding:"required,min=1"`
+	// 登録するStatus名の配列（1件以上、重複不可）
+	Names []string `json:"names" binding:"required,min=1" example:"作業中,休憩中"`
 }
 
 // LogEntry はログ登録リクエストの1エントリを表す
 type LogEntry struct {
-	EventID          string  `json:"event_id" binding:"required"`
-	StatusID         uint    `json:"status_id" binding:"required"`
-	EventTime        string  `json:"event_time" binding:"required"` // RFC3339形式 JST (例: "2006-01-02T15:04:05+09:00")
-	ParticipateUsers []int64 `json:"participate_users"`             // 参加メンバの stay_watch_id（空可）
-	RoomUsers        []int64 `json:"room_users"`                    // 在室メンバの stay_watch_id（空可）
+	// 対象のEventのID（文字列で指定）
+	EventID string `json:"event_id" binding:"required" example:"1"`
+	// 対象のStatusのID
+	StatusID uint `json:"status_id" binding:"required" example:"2"`
+	// イベント発生日時。RFC3339形式のJST
+	EventTime string `json:"event_time" binding:"required" example:"2006-01-02T15:04:05+09:00"`
+	// 参加メンバのstay_watch_idリスト（空可）
+	ParticipateUsers []int64 `json:"participate_users" example:"1,2"`
+	// 在室メンバのstay_watch_idリスト（空可）
+	RoomUsers []int64 `json:"room_users" example:"3,4"`
 }
 
 // RegisterLogsRequest はログ一括登録のリクエストボディ
 type RegisterLogsRequest struct {
+	// 登録するログエントリの配列（1件以上）
 	Logs []LogEntry `json:"logs" binding:"required,min=1"`
 }
 

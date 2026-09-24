@@ -40,6 +40,7 @@ type Event struct {
 	MinNumber  int         `gorm:"default:2"`                              // 最低必要人数
 	GameTypeID *uint       `gorm:"index"`                                  // 分類未設定を許容するためNULL可
 	GameType   *GameType   `gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+	ImageKey   *string     `gorm:"type:varchar(255)"` // オブジェクトストレージ上のキー。例 events/5.png。未登録はNULL
 	EventUsers []EventUser `gorm:"foreignKey:EventID"`
 }
 

@@ -10,58 +10,74 @@ import (
 
 // moment-board の src/types.ts を契約とするDTO群
 
-// BoardActivity は時間帯内の活動1件を表す
-type BoardActivity struct {
-	Name       string `json:"name"`
-	Likelihood string `json:"likelihood"` // "high" | "mid" | "low"
-	Headcount  int    `json:"headcount"`
+const (
+	// boardHourStart はタイムラインの最も早い時刻（この時刻より前は 11 時始まりに丸める）
+	boardHourStart = 11
+	// boardHourEnd はタイムラインに出す最も遅い時刻。これを超える列は出さない
+	boardHourEnd = 19
+	// boardHourCount はタイムラインに並べる列数
+	boardHourCount = 4
+)
+
+// BoardPerson は来訪見込みのある人1件を表す
+type BoardPerson struct {
+	// ユーザー名
+	Name string `json:"name" example:"山田太郎"`
+	// アイコン画像URL
+	AvatarURL string `json:"avatarUrl" example:"https://example.com/avatar.png"`
 }
 
-// BoardPerson は時間帯内に来そうな人1件を表す
-type BoardPerson struct {
-	Name      string `json:"name"`
-	AvatarURL string `json:"avatarUrl"`
-	Arrival   string `json:"arrival"` // "likely" | "maybe"
+// BoardHour はタイムライン1時間ぶんの表示データを表す
+type BoardHour struct {
+	// 時（JST、0〜23）
+	Hour int `json:"hour" example:"15"`
+	// この時間に在室していそうな人一覧
+	People []BoardPerson `json:"people"`
+	// この時間に成立しそうな活動一覧
+	Activities []BoardActivity `json:"activities"`
+}
+
+// BoardActivity はその時間帯に成立しそうな活動1件を表す
+type BoardActivity struct {
+	// イベントID
+	ID uint `json:"id" example:"5"`
+	// 活動（イベント）名
+	Name string `json:"name" example:"人狼"`
+	// 活動の画像URL。未登録の場合は null
+	ImageURL *string `json:"imageUrl" example:"https://example.com/daycast/events/5.png" extensions:"x-nullable=true"`
+	// 活動の成立に必要な最低人数
+	MinNumber int `json:"minNumber" example:"3"`
+	// この活動に関心があり、かつその時間帯に在室していそうなメンバー
+	Members []BoardPerson `json:"members"`
 }
 
 // BoardPresentMember は現在在室している人を表す
 type BoardPresentMember struct {
-	Name      string `json:"name"`
-	AvatarURL string `json:"avatarUrl"`
+	// ユーザー名
+	Name string `json:"name" example:"山田太郎"`
+	// アイコン画像URL
+	AvatarURL string `json:"avatarUrl" example:"https://example.com/avatar.png"`
 }
 
 // BoardPresence は在室情報を表す（在室はフロントがStayWatchから直接取得するため常に空）
 type BoardPresence struct {
+	// 在室中メンバーの配列（常に空配列）
 	Members []BoardPresentMember `json:"members"`
-}
-
-// BoardTimeBlock は1時間帯（昼/夕方/夜）を表す
-type BoardTimeBlock struct {
-	ID         string          `json:"id"` // "noon" | "evening" | "night"
-	Label      string          `json:"label"`
-	Range      string          `json:"range"`
-	IsNow      bool            `json:"isNow"`
-	Activities []BoardActivity `json:"activities"`
-	People     []BoardPerson   `json:"people"`
 }
 
 // BoardData は共有モニター画面全体の表示データを表す
 type BoardData struct {
-	CurrentTime string           `json:"currentTime"`
-	Presence    BoardPresence    `json:"presence"`
-	TimeBlocks  []BoardTimeBlock `json:"timeBlocks"`
+	// データ生成時点の現在時刻（JST、"HH:MM"形式）
+	CurrentTime string `json:"currentTime" example:"15:04"`
+	// 在室情報
+	Presence BoardPresence `json:"presence"`
+	// 現在時刻から最大4時間ぶんのタイムライン（各時間帯に在室予測メンバーと成立しそうな活動を含む）
+	Hours []BoardHour `json:"hours"`
 }
-
-// timeBlockDef は時間帯の定義（分単位、JST）
-type timeBlockDef = config.BoardTimeBlockConfig
-
-// boardTimeBlocks は時間帯の定義一覧（環境変数で調整可能。config.TimeBlocks参照）
-var boardTimeBlocks = config.TimeBlocks
 
 // boardPersonAssign はユーザーの時間帯割当に必要な情報を保持する
 type boardPersonAssign struct {
 	user         model.User
-	arrival      string
 	visitMin     int // -1 = 予測なし
 	departureMin int // -1 = 予測なし
 }
@@ -70,7 +86,6 @@ type boardPersonAssign struct {
 func GetBoardData() (BoardData, error) {
 	now := lib.NowJST()
 	weekday := now.Weekday()
-	nowMin := now.Hour()*60 + now.Minute()
 
 	assigns := collectBoardPeople(weekday)
 
@@ -80,50 +95,138 @@ func GetBoardData() (BoardData, error) {
 		return BoardData{}, err
 	}
 
-	activityProbs, err := GetAllActivityProbabilities(weekday)
+	activityProbByEventID, err := activityProbabilitiesByEventID(weekday)
 	if err != nil {
 		return BoardData{}, err
-	}
-
-	// イベント名 → 所属ユーザーID集合
-	eventMembers := make(map[string]map[uint]bool)
-	for _, ev := range events {
-		members := make(map[uint]bool)
-		for _, eu := range ev.EventUsers {
-			members[eu.UserID] = true
-		}
-		eventMembers[ev.Name] = members
-	}
-
-	blocks := make([]BoardTimeBlock, 0, len(boardTimeBlocks))
-	for _, def := range boardTimeBlocks {
-		people := assignPeopleToBlock(assigns, def)
-
-		// この時間帯に来そうな人のユーザーID集合（headcount計算用）
-		blockUserIDs := make(map[uint]bool)
-		for _, a := range assigns {
-			if isAssignedToBlock(a, def) {
-				blockUserIDs[a.user.ID] = true
-			}
-		}
-
-		activities := buildBlockActivities(activityProbs, eventMembers, blockUserIDs, def)
-
-		blocks = append(blocks, BoardTimeBlock{
-			ID:         def.ID,
-			Label:      def.Label,
-			Range:      def.RangeLabel,
-			IsNow:      nowMin >= def.StartMin && nowMin < def.EndMin,
-			Activities: activities,
-			People:     people,
-		})
 	}
 
 	return BoardData{
 		CurrentTime: now.Format("15:04"),
 		Presence:    BoardPresence{Members: []BoardPresentMember{}},
-		TimeBlocks:  blocks,
+		Hours:       buildBoardHours(events, assigns, activityProbByEventID, now.Hour()),
 	}, nil
+}
+
+// activityProbabilitiesByEventID は全活動のGMM時間帯確率を EventID をキーにしたマップにして返す
+func activityProbabilitiesByEventID(weekday time.Weekday) (map[uint]ActivityProbability, error) {
+	probs, err := GetAllActivityProbabilities(weekday)
+	if err != nil {
+		return nil, err
+	}
+
+	byEventID := make(map[uint]ActivityProbability, len(probs))
+	for _, p := range probs {
+		byEventID[p.EventID] = p
+	}
+	return byEventID, nil
+}
+
+// boardHourRange は表示する時刻の列を返す
+// 現在時刻を先頭に boardHourCount 時間ぶん並べる。boardHourStart より前は boardHourStart 始まりに、
+// boardHourEnd を超える列は出さない（夜間は列が減っていき、最終的に空になる）
+func boardHourRange(nowHour int) []int {
+	start := nowHour
+	if start < boardHourStart {
+		start = boardHourStart
+	}
+
+	hours := make([]int, 0, boardHourCount)
+	for hour := start; hour < start+boardHourCount && hour <= boardHourEnd; hour++ {
+		hours = append(hours, hour)
+	}
+	return hours
+}
+
+// buildBoardHours はタイムラインの各列に在室予想者と成立しそうな活動を割り当てる
+func buildBoardHours(events []model.Event, assigns []boardPersonAssign, activityProbByEventID map[uint]ActivityProbability, nowHour int) []BoardHour {
+	hourColumns := boardHourRange(nowHour)
+
+	hours := make([]BoardHour, 0, len(hourColumns))
+	for _, hour := range hourColumns {
+		people := []BoardPerson{}
+		for _, a := range assigns {
+			if isPresentAtHour(a, hour) {
+				people = append(people, newBoardPerson(a.user))
+			}
+		}
+		hours = append(hours, BoardHour{
+			Hour:       hour,
+			People:     people,
+			Activities: buildBoardActivitiesForHour(events, assigns, activityProbByEventID, hour),
+		})
+	}
+	return hours
+}
+
+// isPresentAtHour は予測時刻に基づき、指定の1時間にユーザーが在室していそうかを判定する
+// - visit/departure 両方あり: 滞在区間とその時間が重なれば表示
+// - visit のみ: visit 以降のすべての時間に表示
+// - departure のみ: departure までのすべての時間に表示
+// - 両方なし: 非表示
+func isPresentAtHour(a boardPersonAssign, hour int) bool {
+	startMin := hour * 60
+	endMin := (hour + 1) * 60
+
+	switch {
+	case a.visitMin >= 0 && a.departureMin >= 0:
+		return a.visitMin < endMin && a.departureMin > startMin
+	case a.visitMin >= 0:
+		return a.visitMin < endMin
+	case a.departureMin >= 0:
+		return a.departureMin > startMin
+	default:
+		return false
+	}
+}
+
+// buildBoardActivitiesForHour は「関心のあるメンバーがその時間帯に在室していそうで、
+// かつ最低人数以上そろいそうな活動」を、その時間のGMM活動確率がしきい値以上のものに絞って返す
+func buildBoardActivitiesForHour(events []model.Event, assigns []boardPersonAssign, activityProbByEventID map[uint]ActivityProbability, hour int) []BoardActivity {
+	// この時間帯に在室していそうな人（ArrivalMaybe 以上で足切り済み）
+	presentUsers := make(map[uint]model.User, len(assigns))
+	for _, a := range assigns {
+		if isPresentAtHour(a, hour) {
+			presentUsers[a.user.ID] = a.user
+		}
+	}
+
+	activities := []BoardActivity{}
+	for _, ev := range events {
+		prob, ok := activityProbByEventID[ev.ID]
+		if !ok || prob.Probabilities[hour] < config.Board.ActivityProbability {
+			continue
+		}
+
+		members := []BoardPerson{}
+		for _, eu := range ev.EventUsers {
+			user, ok := presentUsers[eu.UserID]
+			if !ok {
+				continue
+			}
+			members = append(members, newBoardPerson(user))
+		}
+
+		if len(members) < ev.MinNumber {
+			continue
+		}
+
+		activities = append(activities, BoardActivity{
+			ID:        ev.ID,
+			Name:      ev.Name,
+			ImageURL:  EventImageURL(ev.ImageKey),
+			MinNumber: ev.MinNumber,
+			Members:   members,
+		})
+	}
+	return activities
+}
+
+// newBoardPerson は表示用の人物データを作る
+func newBoardPerson(user model.User) BoardPerson {
+	return BoardPerson{
+		Name:      user.Name,
+		AvatarURL: user.IconURL,
+	}
 }
 
 // collectBoardPeople は全ユーザーの来訪確率・予測時刻を取得し、時間帯割当用の情報を作る
@@ -137,7 +240,6 @@ func collectBoardPeople(weekday time.Weekday) []boardPersonAssign {
 	probs := GetStayWatchProbability(users, weekday)
 
 	// 来訪確率が maybe 閾値以上のユーザーのみ対象
-	arrivalByStayWatchID := make(map[int64]string)
 	var candidates []model.User
 	userByStayWatchID := make(map[int64]model.User)
 	for _, user := range users {
@@ -151,11 +253,6 @@ func collectBoardPeople(weekday time.Weekday) []boardPersonAssign {
 		if !ok {
 			continue
 		}
-		arrival := "maybe"
-		if p.Probability >= config.Board.ArrivalLikely {
-			arrival = "likely"
-		}
-		arrivalByStayWatchID[user.StayWatchID] = arrival
 		candidates = append(candidates, user)
 	}
 	if len(candidates) == 0 {
@@ -180,7 +277,6 @@ func collectBoardPeople(weekday time.Weekday) []boardPersonAssign {
 		}
 		assigns = append(assigns, boardPersonAssign{
 			user:         user,
-			arrival:      arrivalByStayWatchID[user.StayWatchID],
 			visitMin:     visitMin,
 			departureMin: departureMin,
 		})
@@ -199,77 +295,4 @@ func predictionMinutesByUserID(results []Result) map[int64]int {
 		m[r.UserID] = min
 	}
 	return m
-}
-
-// isAssignedToBlock は予測時刻に基づきユーザーを時間帯に割り当てるか判定する
-// - visit/departure 両方あり: 滞在区間と時間帯が重なれば表示
-// - visit のみ: visit 以降のすべての時間帯に表示
-// - departure のみ: departure までのすべての時間帯に表示
-// - 両方なし: 非表示
-func isAssignedToBlock(a boardPersonAssign, def timeBlockDef) bool {
-	switch {
-	case a.visitMin >= 0 && a.departureMin >= 0:
-		return a.visitMin < def.EndMin && a.departureMin > def.StartMin
-	case a.visitMin >= 0:
-		return a.visitMin < def.EndMin
-	case a.departureMin >= 0:
-		return a.departureMin > def.StartMin
-	default:
-		return false
-	}
-}
-
-// assignPeopleToBlock は時間帯に表示する人のリストを作る
-func assignPeopleToBlock(assigns []boardPersonAssign, def timeBlockDef) []BoardPerson {
-	people := []BoardPerson{}
-	for _, a := range assigns {
-		if !isAssignedToBlock(a, def) {
-			continue
-		}
-		people = append(people, BoardPerson{
-			Name:      a.user.Name,
-			AvatarURL: a.user.IconURL,
-			Arrival:   a.arrival,
-		})
-	}
-	return people
-}
-
-// buildBlockActivities は時間帯内の活動リストを作る
-// likelihood は時間帯内の時間別確率の最大値を2閾値で段階化し、最小閾値未満は表示しない
-// headcount はその活動のメンバーのうち、この時間帯に来そうな人の数
-func buildBlockActivities(probs []ActivityProbability, eventMembers map[string]map[uint]bool, blockUserIDs map[uint]bool, def timeBlockDef) []BoardActivity {
-	activities := []BoardActivity{}
-	for _, ap := range probs {
-		maxProb := 0.0
-		for hour := def.StartMin / 60; hour < (def.EndMin+59)/60 && hour < 24; hour++ {
-			if ap.Probabilities[hour] > maxProb {
-				maxProb = ap.Probabilities[hour]
-			}
-		}
-		if maxProb < config.Board.LikelihoodMin {
-			continue
-		}
-
-		likelihood := "low"
-		if maxProb >= config.Board.LikelihoodHigh {
-			likelihood = "high"
-		} else if maxProb >= config.Board.LikelihoodMid {
-			likelihood = "mid"
-		}
-
-		headcount := 0
-		for userID := range eventMembers[ap.ActivityName] {
-			if blockUserIDs[userID] {
-				headcount++
-			}
-		}
-
-		activities = append(activities, BoardActivity{
-			Name:       ap.ActivityName,
-			Likelihood: likelihood,
-			Headcount:  headcount,
-		})
-	}
-	return activities
 }

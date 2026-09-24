@@ -36,6 +36,15 @@ stay-watch-slackbotのREST APIドキュメント。
       - [時刻の扱い](#時刻の扱い)
       - [バリデーション](#バリデーション)
       - [使用例](#使用例-4)
+  - [Board API](#board-api)
+    - [GET /api/board](#get-apiboard)
+      - [リクエスト](#リクエスト-5)
+      - [レスポンス (HTTP 200 OK)](#レスポンス-http-200-ok-3)
+      - [使用例](#使用例-5)
+  - [Slack Command API](#slack-command-api)
+    - [POST /slack/command/add_event_image](#post-slackcommandadd_event_image)
+      - [リクエスト](#リクエスト-6)
+      - [レスポンス](#レスポンス)
 
 ---
 
@@ -378,3 +387,81 @@ curl -X POST http://localhost:8085/api/logs \
     ]
   }'
 ```
+
+---
+
+## Board API
+
+### GET /api/board
+
+共有モニター(moment-board)用の集約表示データを取得する。
+
+- `hours` は現在時刻を先頭に最大4時間ぶんの在室予想タイムライン。11時より前は11時始まりに丸められ、19時を超える列は出さないため、夜間は列が減っていき最終的に空配列になる。
+- `hours[].activities` はその時間帯ごとに成立しそうな活動一覧。「その時間帯に在室していそうなメンバー」が最低人数（`minNumber`）以上そろい、かつその時間帯のGMM活動確率が閾値（`BOARD_ACTIVITY_PROBABILITY_THRESHOLD`、デフォルト `0.3`）以上の活動のみを返す。
+- `presence.members` は常に空配列。現在の在室者はフロントが StayWatch から直接取得する。
+- `imageUrl` は画像未登録、またはオブジェクトストレージ未設定の場合に `null` になる。
+
+#### リクエスト
+
+```sh
+GET /api/board
+```
+
+#### レスポンス (HTTP 200 OK)
+
+```json
+{
+  "currentTime": "15:04",
+  "presence": { "members": [] },
+  "hours": [
+    {
+      "hour": 15,
+      "people": [
+        { "name": "enami", "avatarUrl": "https://example.com/avatar.png" }
+      ],
+      "activities": [
+        {
+          "id": 5,
+          "name": "カタン(スタンダート)",
+          "imageUrl": "https://storage.example.com/daycast/events/5.png",
+          "minNumber": 3,
+          "members": [
+            { "name": "hanada", "avatarUrl": "https://example.com/avatar.png" }
+          ]
+        }
+      ]
+    },
+    { "hour": 16, "people": [], "activities": [] },
+    { "hour": 17, "people": [], "activities": [] },
+    { "hour": 18, "people": [], "activities": [] }
+  ]
+}
+```
+
+#### 使用例
+
+```bash
+curl http://localhost:8085/api/board
+```
+
+---
+
+## Slack Command API
+
+### POST /slack/command/add_event_image
+
+Slack のスラッシュコマンド `/add_event_image` を受け取り、活動画像の登録モーダルを開く。
+
+モーダルは対象イベントの `static_select` と、png / jpg / jpeg を1ファイル受け付ける `file_input` で構成される。
+送信されると `POST /slack/interaction`（`view_submission`、`callback_id: register_event_image`）に届き、
+Slack の `url_private` を Bot トークンで取得してオブジェクトストレージへ保存し、`events.image_key` を更新する。
+
+Slack App 側に **`files:read` スコープ** と スラッシュコマンド `/add_event_image` の登録が必要。
+
+#### リクエスト
+
+Slack からの `application/x-www-form-urlencoded` なスラッシュコマンドペイロード。
+
+#### レスポンス
+
+モーダルを開いた旨のエフェメラルメッセージを返す。登録結果はモーダル送信後に `response_url` へ投稿される。

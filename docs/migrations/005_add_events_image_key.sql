@@ -1,0 +1,12 @@
+-- events に活動画像のオブジェクトストレージキーを保持する image_key カラムを追加
+--
+-- model.Event.ImageKey の追加に伴う変更。
+-- カラム追加のため、アプリ起動時の GORM AutoMigrate で自動的に反映される
+-- （手動実行は不要。本ファイルは記録用）。
+--
+-- 公開URL全体ではなくキーだけを保存する。ストレージのホスト名やバケット名が
+-- 変わっても DB を触らずに済むため。値の例: 'events/5.png'。未登録は NULL。
+--
+-- 参考: AutoMigrate が実行するのと等価なDDL
+-- ALTER TABLE events
+--     ADD COLUMN image_key VARCHAR(255) NULL AFTER game_type_id;

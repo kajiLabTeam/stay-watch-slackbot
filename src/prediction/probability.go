@@ -3,7 +3,6 @@ package prediction
 import (
 	"fmt"
 	"math"
-	"strings"
 
 	"github.com/kajiLabTeam/stay-watch-slackbot/lib"
 	"gonum.org/v1/gonum/stat"
@@ -20,40 +19,15 @@ import (
 //   - 確率を（クラスタサイズ / 週数）で重み付け
 //
 // 3. 確率を合計して返す
+//
+// 同じデータで複数の時刻を評価する場合は、クラスタリングを繰り返さずに済む
+// NewProbabilityModel() + ProbabilityModel.Probability() を使うこと。
 func GetProbability(data []string, time string, weeks int) (float64, error) {
-	// 時刻文字列を分に変換
-	dataMinutes := make([]int, 0, len(data))
-	for _, d := range data {
-		minutes, err := lib.TimeToMinutes(d)
-		if err != nil {
-			return 0, err
-		}
-		dataMinutes = append(dataMinutes, minutes)
-	}
-
-	timeMinutes, err := lib.TimeToMinutes(time)
+	model, err := NewProbabilityModel(data)
 	if err != nil {
 		return 0, err
 	}
-
-	// データポイントが1つの場合の特別処理
-	if len(dataMinutes) == 1 {
-		if timeMinutes >= dataMinutes[0] {
-			return 1.0 / float64(weeks), nil
-		}
-		return 0, nil
-	}
-
-	// 1. GMMを使用してデータをクラスタリング
-	clusters := Clustering(dataMinutes)
-
-	// 2. 各クラスタの確率を計算・合計
-	totalProbability := 0.0
-	for _, c := range clusters {
-		totalProbability += calcClusterProbability(c, timeMinutes, weeks)
-	}
-
-	return totalProbability, nil
+	return model.Probability(time, weeks)
 }
 
 // calcClusterProbability 単一クラスタの来訪確率を計算する
@@ -96,30 +70,11 @@ func calcClusterProbability(c ClusteringResult, timeMinutes int, weeks int) floa
 // time: "HH:MM"形式の時刻文字列
 // weeks: 週数
 func GetProbabilityByUniqueDate(data []string, time string, weeks int) (float64, error) {
-	// 日付ごとに最初の時刻のみを保持
-	dateToTime := make(map[string]string)
-	for _, d := range data {
-		parts := strings.SplitN(d, " ", 2)
-		if len(parts) != 2 {
-			return 0, fmt.Errorf("invalid datetime format: %s", d)
-		}
-		date := parts[0]
-		timeStr := parts[1]
-
-		// 同じ日付がまだ登録されていない場合のみ追加
-		if _, exists := dateToTime[date]; !exists {
-			dateToTime[date] = timeStr
-		}
+	model, err := NewProbabilityModelByUniqueDate(data)
+	if err != nil {
+		return 0, err
 	}
-
-	// 重複排除後の時刻リストを作成
-	uniqueTimes := make([]string, 0, len(dateToTime))
-	for _, t := range dateToTime {
-		uniqueTimes = append(uniqueTimes, t)
-	}
-
-	// 既存のGetProbability関数を使用して確率を計算
-	return GetProbability(uniqueTimes, time, weeks)
+	return model.Probability(time, weeks)
 }
 
 // GetProbabilityFromDatetimes 来訪確率を計算する（日付重複排除なし）
@@ -128,17 +83,11 @@ func GetProbabilityByUniqueDate(data []string, time string, weeks int) (float64,
 // time: "HH:MM"形式の時刻文字列
 // weeks: 週数
 func GetProbabilityFromDatetimes(data []string, time string, weeks int) (float64, error) {
-	// datetime文字列から時刻部分のみを抽出（重複排除しない）
-	times := make([]string, 0, len(data))
-	for _, d := range data {
-		parts := strings.SplitN(d, " ", 2)
-		if len(parts) != 2 {
-			return 0, fmt.Errorf("invalid datetime format: %s", d)
-		}
-		times = append(times, parts[1])
+	model, err := NewProbabilityModelFromDatetimes(data)
+	if err != nil {
+		return 0, err
 	}
-
-	return GetProbability(times, time, weeks)
+	return model.Probability(time, weeks)
 }
 
 // GetMostLikelyTime 活動の最も可能性の高い時間を見つける

@@ -3,21 +3,32 @@ definitions:
   controller.LogEntry:
     properties:
       event_id:
+        description: 対象のEventのID（文字列で指定）
+        example: "1"
         type: string
       event_time:
-        description: 'RFC3339形式 JST (例: "2006-01-02T15:04:05+09:00")'
+        description: イベント発生日時。RFC3339形式のJST
+        example: "2006-01-02T15:04:05+09:00"
         type: string
       participate_users:
-        description: 参加メンバの stay_watch_id（空可）
+        description: 参加メンバのstay_watch_idリスト（空可）
+        example:
+        - 1
+        - 2
         items:
           type: integer
         type: array
       room_users:
-        description: 在室メンバの stay_watch_id（空可）
+        description: 在室メンバのstay_watch_idリスト（空可）
+        example:
+        - 3
+        - 4
         items:
           type: integer
         type: array
       status_id:
+        description: 対象のStatusのID
+        example: 2
         type: integer
     required:
     - event_id
@@ -27,6 +38,7 @@ definitions:
   controller.RegisterLogsRequest:
     properties:
       logs:
+        description: 登録するログエントリの配列（1件以上）
         items:
           $ref: '#/definitions/controller.LogEntry'
         minItems: 1
@@ -37,6 +49,10 @@ definitions:
   controller.RegisterStatusesRequest:
     properties:
       names:
+        description: 登録するStatus名の配列（1件以上、重複不可）
+        example:
+        - 作業中
+        - 休憩中
         items:
           type: string
         minItems: 1
@@ -46,38 +62,77 @@ definitions:
     type: object
   service.BoardActivity:
     properties:
-      headcount:
+      id:
+        description: イベントID
+        example: 5
         type: integer
-      likelihood:
-        description: '"high" | "mid" | "low"'
+      imageUrl:
+        description: 活動の画像URL。未登録の場合は null
+        example: https://example.com/daycast/events/5.png
         type: string
+        x-nullable: "true"
+      members:
+        description: この活動に関心があり、かつその時間帯に在室していそうなメンバー
+        items:
+          $ref: '#/definitions/service.BoardPerson'
+        type: array
+      minNumber:
+        description: 活動の成立に必要な最低人数
+        example: 3
+        type: integer
       name:
+        description: 活動（イベント）名
+        example: 人狼
         type: string
     type: object
   service.BoardData:
     properties:
       currentTime:
+        description: データ生成時点の現在時刻（JST、"HH:MM"形式）
+        example: "15:04"
         type: string
-      presence:
-        $ref: '#/definitions/service.BoardPresence'
-      timeBlocks:
+      hours:
+        description: 現在時刻から最大4時間ぶんのタイムライン（各時間帯に在室予測メンバーと成立しそうな活動を含む）
         items:
-          $ref: '#/definitions/service.BoardTimeBlock'
+          $ref: '#/definitions/service.BoardHour'
+        type: array
+      presence:
+        allOf:
+        - $ref: '#/definitions/service.BoardPresence'
+        description: 在室情報
+    type: object
+  service.BoardHour:
+    properties:
+      activities:
+        description: この時間に成立しそうな活動一覧
+        items:
+          $ref: '#/definitions/service.BoardActivity'
+        type: array
+      hour:
+        description: 時（JST、0〜23）
+        example: 15
+        type: integer
+      people:
+        description: この時間に在室していそうな人一覧
+        items:
+          $ref: '#/definitions/service.BoardPerson'
         type: array
     type: object
   service.BoardPerson:
     properties:
-      arrival:
-        description: '"likely" | "maybe"'
-        type: string
       avatarUrl:
+        description: アイコン画像URL
+        example: https://example.com/avatar.png
         type: string
       name:
+        description: ユーザー名
+        example: 山田太郎
         type: string
     type: object
   service.BoardPresence:
     properties:
       members:
+        description: 在室中メンバーの配列（常に空配列）
         items:
           $ref: '#/definitions/service.BoardPresentMember'
         type: array
@@ -85,28 +140,12 @@ definitions:
   service.BoardPresentMember:
     properties:
       avatarUrl:
+        description: アイコン画像URL
+        example: https://example.com/avatar.png
         type: string
       name:
-        type: string
-    type: object
-  service.BoardTimeBlock:
-    properties:
-      activities:
-        items:
-          $ref: '#/definitions/service.BoardActivity'
-        type: array
-      id:
-        description: '"noon" | "evening" | "night"'
-        type: string
-      isNow:
-        type: boolean
-      label:
-        type: string
-      people:
-        items:
-          $ref: '#/definitions/service.BoardPerson'
-        type: array
-      range:
+        description: ユーザー名
+        example: 山田太郎
         type: string
     type: object
 info:
