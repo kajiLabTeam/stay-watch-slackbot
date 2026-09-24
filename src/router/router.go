@@ -71,13 +71,15 @@ func Router() {
 	// Slack endpoints
 	r.POST("/slack/events", controller.PostSlackEvents)
 	r.POST("/slack/interaction", controller.PostSlackInteraction)
-	r.POST("/slack/command/add_user", controller.PostRegisterUserCommand)
-	r.POST("/slack/command/add_event", controller.PostRegisterEventCommand)
-	r.POST("/slack/command/add_event_image", controller.PostRegisterEventImageCommand)
-	r.POST("/slack/command/add_correspond", controller.PostRegisterCorrespondCommand)
-	r.POST("/slack/command/list_users", controller.PostListUsersCommand)
-	r.POST("/slack/command/delete_user", controller.PostDeleteUserCommand)
-	r.POST("/slack/command/delete_ob_users", controller.PostDeleteOBUsersCommand)
+
+	slashCommands := r.Group("/slack/command", controller.VerifySlackSignature())
+	slashCommands.POST("/add_user", controller.PostRegisterUserCommand)
+	slashCommands.POST("/add_event", controller.PostRegisterEventCommand)
+	slashCommands.POST("/add_event_image", controller.PostRegisterEventImageCommand)
+	slashCommands.POST("/add_correspond", controller.PostRegisterCorrespondCommand)
+	slashCommands.POST("/list_users", controller.PostListUsersCommand)
+	slashCommands.POST("/delete_user", controller.PostDeleteUserCommand)
+	slashCommands.POST("/delete_ob_users", controller.PostDeleteOBUsersCommand)
 	r.GET("/notification", controller.SendDM)
 
 	// Swagger
