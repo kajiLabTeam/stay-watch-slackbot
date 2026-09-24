@@ -398,7 +398,7 @@ curl -X POST http://localhost:8085/api/logs \
 
 - `hours` は現在時刻を先頭に最大4時間ぶんの在室予想タイムライン。11時より前は11時始まりに丸められ、19時を超える列は出さないため、夜間は列が減っていき最終的に空配列になる。
 - `hours[].activities` はその時間帯ごとに成立しそうな活動一覧。「その時間帯に在室していそうなメンバー」が最低人数（`minNumber`）以上そろい、かつその時間帯のGMM活動確率が閾値（`BOARD_ACTIVITY_PROBABILITY_THRESHOLD`、デフォルト `0.3`）以上の活動のみを返す。
-- `presence.members` は常に空配列。現在の在室者はフロントが StayWatch から直接取得する。
+- `presence.members` は現在の在室者。StayWatch の在室API（`STAYWATCH_PRESENCE_PATH`、デフォルト `/api/v1/stayers`）から取得し、`stay_watch_id` が一致するユーザーの `name` と `avatarUrl`（`icon_url`）を返す。DB未登録の在室者は StayWatch 上の名前と空の `avatarUrl` で返す。StayWatch の取得に失敗した場合は空配列になる。
 - `imageUrl` は画像未登録、またはオブジェクトストレージ未設定の場合に `null` になる。
 
 #### リクエスト
@@ -412,7 +412,11 @@ GET /api/board
 ```json
 {
   "currentTime": "15:04",
-  "presence": { "members": [] },
+  "presence": {
+    "members": [
+      { "name": "hanada", "avatarUrl": "https://example.com/avatar.png" }
+    ]
+  },
   "hours": [
     {
       "hour": 15,

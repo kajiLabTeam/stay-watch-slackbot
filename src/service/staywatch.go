@@ -51,6 +51,15 @@ func GetStayWatchMember() ([]StaywatchUsers, error) {
 	return users, nil
 }
 
+// GetStayWatchPresence StayWatchから現在の在室者一覧を取得する
+func GetStayWatchPresence() ([]StaywatchUsers, error) {
+	var stayers []StaywatchUsers
+	if err := stayWatchClient.Get(staywatch.BaseURL+staywatch.Presence, &stayers); err != nil {
+		return nil, err
+	}
+	return stayers, nil
+}
+
 // GetStayWatchUserDetail StayWatchから指定ユーザーの詳細（タグ情報を含む）を取得する
 func GetStayWatchUserDetail(stayWatchID int64) (StayWatchUserDetail, error) {
 	var detail StayWatchUserDetail
