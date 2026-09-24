@@ -19,8 +19,11 @@ const maxEventImageBytes = 10 << 20 // 10MiB
 
 // EventImageURL は保存済みキーから公開URLを組み立てる。
 // キーが未登録、またはストレージが未設定の場合は nil を返す（レスポンスでは null になる）。
-func EventImageURL(imageKey string) *string {
-	url := lib.EventImages.PublicURL(imageKey)
+func EventImageURL(imageKey *string) *string {
+	if imageKey == nil {
+		return nil
+	}
+	url := lib.EventImages.PublicURL(*imageKey)
 	if url == "" {
 		return nil
 	}

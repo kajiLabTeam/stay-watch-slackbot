@@ -56,7 +56,7 @@ func (e *Event) UpdateImageKey(imageKey string) error {
 	if err := db.Model(e).Update("image_key", imageKey).Error; err != nil {
 		return err
 	}
-	e.ImageKey = imageKey
+	e.ImageKey = &imageKey
 	return nil
 }
 
