@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"strings"
 
 	"github.com/kajiLabTeam/stay-watch-slackbot/lib"
 	"github.com/kajiLabTeam/stay-watch-slackbot/model"
@@ -81,10 +83,15 @@ func readAllLimited(r io.Reader, limit int64) ([]byte, error) {
 	return data, nil
 }
 
-// fetchSlackFile は url_private を Bot トークン付きで取得する
+// fetchSlackFile は url_private を Bot トークン付きで取得する。
+// urlPrivate は署名未検証の interaction payload に由来しうるため、
+// Slack のファイルホスト以外へBotトークンが送られないよう厳格に検証する。
 func fetchSlackFile(ctx context.Context, urlPrivate string) (body io.ReadCloser, contentType string, err error) {
 	if urlPrivate == "" {
 		return nil, "", errors.New("file url is empty")
+	}
+	if err := validateSlackFileURL(urlPrivate); err != nil {
+		return nil, "", err
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, urlPrivate, nil)
@@ -93,7 +100,15 @@ func fetchSlackFile(ctx context.Context, urlPrivate string) (body io.ReadCloser,
 	}
 	req.Header.Set("Authorization", "Bearer "+slackBotToken)
 
-	resp, err := lib.SharedHTTPClient.Do(req)
+	client := &http.Client{
+		Timeout: lib.SharedHTTPClient.Timeout,
+		// リダイレクト先の検証を避けるため、Slackのファイルホストへのリダイレクトも一切追わない
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to download slack file: %w", err)
 	}
@@ -103,4 +118,20 @@ func fetchSlackFile(ctx context.Context, urlPrivate string) (body io.ReadCloser,
 	}
 
 	return resp.Body, resp.Header.Get("Content-Type"), nil
+}
+
+// validateSlackFileURL は urlPrivate が Slack のファイルホストを指す https URL であることを検証する
+func validateSlackFileURL(urlPrivate string) error {
+	u, err := url.Parse(urlPrivate)
+	if err != nil {
+		return fmt.Errorf("invalid file url: %w", err)
+	}
+	if u.Scheme != "https" {
+		return errors.New("file url must use https")
+	}
+	host := strings.ToLower(u.Hostname())
+	if host != "slack.com" && !strings.HasSuffix(host, ".slack.com") {
+		return fmt.Errorf("file url host is not a Slack host: %s", host)
+	}
+	return nil
 }
