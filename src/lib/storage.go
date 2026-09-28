@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/smithy-go/middleware"
 	"github.com/kajiLabTeam/stay-watch-slackbot/config"
 )
 
@@ -66,6 +67,16 @@ func newS3EventImageStore(cfg config.S3Config) *s3EventImageStore {
 		BaseEndpoint: aws.String(strings.TrimRight(cfg.Endpoint, "/")),
 		// RustFS は単一ホスト名で運用するため path-style が必須
 		UsePathStyle: true,
+		APIOptions: []func(*middleware.Stack) error{
+			// SDKは既定でAccept-Encoding: identityを署名対象ヘッダに含めるが、
+			// RustFSの手前のCloudflareがオリジンへの転送時にこの値をgzip等へ
+			// 書き換えてしまい、署名検証がSignatureDoesNotMatchで失敗する。
+			// このミドルウェアを外し、Accept-Encodingを署名対象から除外する。
+			func(stack *middleware.Stack) error {
+				_, _ = stack.Finalize.Remove("DisableAcceptEncodingGzip")
+				return nil
+			},
+		},
 	})
 
 	return &s3EventImageStore{
