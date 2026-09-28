@@ -121,7 +121,7 @@ func (s *s3EventImageStore) DeleteEventImage(ctx context.Context, key string) er
 }
 
 // ExtensionForImageContentType は content-type から拡張子を決める。
-// 活動画像として許可するのは png / jpeg のみ。
+// 活動画像として許可するのは png / jpeg / svg のみ。
 func ExtensionForImageContentType(contentType string) (string, error) {
 	// "image/png; charset=..." のようなパラメータ付きにも対応する
 	mediaType := strings.ToLower(strings.TrimSpace(strings.SplitN(contentType, ";", 2)[0]))
@@ -131,6 +131,8 @@ func ExtensionForImageContentType(contentType string) (string, error) {
 		return ".png", nil
 	case "image/jpeg", "image/jpg":
 		return ".jpg", nil
+	case "image/svg+xml":
+		return ".svg", nil
 	default:
 		return "", fmt.Errorf("unsupported image content type: %s", contentType)
 	}
