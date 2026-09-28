@@ -115,10 +115,9 @@ func fetchSlackFile(ctx context.Context, urlPrivate string) (body io.ReadCloser,
 
 	client := &http.Client{
 		Timeout: lib.SharedHTTPClient.Timeout,
-		// リダイレクト先の検証を避けるため、Slackのファイルホストへのリダイレクトも一切追わない
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			return http.ErrUseLastResponse
-		},
+		// url_private は大きなファイル等で署名付きURL（S3等）へ302することがあるため追従する。
+		// Authorization ヘッダは net/http がリダイレクト先ホストが変わると自動的に外すため、
+		// Botトークンが外部ホストへ漏れる心配はない。
 	}
 
 	resp, err := client.Do(req)
