@@ -232,9 +232,9 @@ func PostRegisterEventImageCommand(c *gin.Context) {
 		slack.NewInputBlock(
 			"image_block",
 			slack.NewTextBlockObject("plain_text", "画像をアップロードしてください", false, false),
-			slack.NewTextBlockObject("plain_text", "png / jpg / jpeg、1ファイルのみ", false, false),
+			slack.NewTextBlockObject("plain_text", "png / jpg / jpeg / svg、1ファイルのみ", false, false),
 			slack.NewFileInputBlockElement("image_input").
-				WithFileTypes("png", "jpg", "jpeg").
+				WithFileTypes("png", "jpg", "jpeg", "svg").
 				WithMaxFiles(1),
 		),
 	}
