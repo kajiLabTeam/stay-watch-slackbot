@@ -205,10 +205,10 @@ func handleRegisterEventImage(c *gin.Context, interaction slack.InteractionCallb
 
 	select {
 	case eventImageJobSlots <- struct{}{}:
-		log.Printf("register_event_image: accepted (event %d, mimetype %s)", eventID, file.Mimetype)
+		log.Printf("register_event_image: accepted (event %d, mimetype %s, filetype %s)", eventID, file.Mimetype, file.Filetype)
 		go func() {
 			defer func() { <-eventImageJobSlots }()
-			registerEventImageAsync(uint(eventID), file.URLPrivate, file.Mimetype, responseURL)
+			registerEventImageAsync(uint(eventID), file.URLPrivate, file.Mimetype, file.Filetype, responseURL)
 		}()
 	default:
 		log.Printf("register_event_image: rejected, too many concurrent jobs (event %d)", eventID)
@@ -224,11 +224,11 @@ func handleRegisterEventImage(c *gin.Context, interaction slack.InteractionCallb
 
 // registerEventImageAsync は画像の保存を行い、結果を response_url へ投稿する。
 // リクエストのライフサイクルから外れるため、独自のタイムアウト付き context を使う。
-func registerEventImageAsync(eventID uint, urlPrivate, mimetype, responseURL string) {
+func registerEventImageAsync(eventID uint, urlPrivate, mimetype, filetype, responseURL string) {
 	ctx, cancel := context.WithTimeout(context.Background(), eventImageRegisterTimeout)
 	defer cancel()
 
-	event, err := service.RegisterEventImageFromSlack(ctx, eventID, urlPrivate, mimetype)
+	event, err := service.RegisterEventImageFromSlack(ctx, eventID, urlPrivate, mimetype, filetype)
 	if err != nil {
 		log.Printf("failed to register event image (event %d): %v", eventID, err)
 		postToResponseURL(responseURL, "画像の登録に失敗しました: "+err.Error())
