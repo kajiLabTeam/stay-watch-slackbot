@@ -34,8 +34,11 @@ func EventImageURL(imageKey *string) *string {
 // RegisterEventImageFromSlack は Slack にアップロードされた画像を取得して
 // オブジェクトストレージへ保存し、events.image_key を更新する。
 // urlPrivate は Slack の file.url_private（Bot トークンでの認証が必要）、
-// mimetype は Slack が申告する file.mimetype（空ならレスポンスヘッダで代替する）。
-func RegisterEventImageFromSlack(ctx context.Context, eventID uint, urlPrivate string, mimetype string) (model.Event, error) {
+// mimetype は Slack が申告する file.mimetype（空ならレスポンスヘッダで代替する）、
+// filetype は Slack が正規化して返す file.filetype（"png"/"jpg"/"svg" 等）。
+// SVGはSlackがmimetypeをapplication/octet-stream等の汎用値で返すことがあるため、
+// mimetypeで判定できない場合はfiletypeで補完する。
+func RegisterEventImageFromSlack(ctx context.Context, eventID uint, urlPrivate string, mimetype string, filetype string) (model.Event, error) {
 	event := model.Event{}
 	event.ID = eventID
 	if err := event.ReadByID(); err != nil {
@@ -48,13 +51,14 @@ func RegisterEventImageFromSlack(ctx context.Context, eventID uint, urlPrivate s
 	}
 	defer body.Close()
 
-	contentType := mimetype
-	if contentType == "" {
-		contentType = headerContentType
+	rawContentType := mimetype
+	if rawContentType == "" {
+		rawContentType = headerContentType
 	}
 
 	// content-type を先に検証しておくことで、不正な形式をストレージに送らずに済む
-	if _, err := lib.ExtensionForImageContentType(contentType); err != nil {
+	contentType, err := lib.ResolveImageContentType(rawContentType, filetype)
+	if err != nil {
 		return event, err
 	}
 

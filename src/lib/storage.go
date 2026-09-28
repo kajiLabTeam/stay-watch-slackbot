@@ -137,3 +137,26 @@ func ExtensionForImageContentType(contentType string) (string, error) {
 		return "", fmt.Errorf("unsupported image content type: %s", contentType)
 	}
 }
+
+// ResolveImageContentType は Slack から届いた mimetype / filetype を基に
+// 保存用の正規化された content-type を決める。
+// Slack は SVG を安全のため application/octet-stream 等の汎用的な
+// mimetype で返すことがあるため、まず mimetype で判定し、
+// 判定できない場合は filetype（Slack が常に正規化して返す拡張子相当の値）で補完する。
+func ResolveImageContentType(mimetype, filetype string) (string, error) {
+	if _, err := ExtensionForImageContentType(mimetype); err == nil {
+		mediaType := strings.ToLower(strings.TrimSpace(strings.SplitN(mimetype, ";", 2)[0]))
+		return mediaType, nil
+	}
+
+	switch strings.ToLower(strings.TrimSpace(filetype)) {
+	case "png":
+		return "image/png", nil
+	case "jpg", "jpeg":
+		return "image/jpeg", nil
+	case "svg":
+		return "image/svg+xml", nil
+	default:
+		return "", fmt.Errorf("unsupported image content type: %s (filetype: %s)", mimetype, filetype)
+	}
+}
