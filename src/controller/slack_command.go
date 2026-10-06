@@ -109,6 +109,13 @@ func PostRegisterEventCommand(c *gin.Context) {
 			slack.NewTextBlockObject("plain_text", "名前", false, false),
 			slack.NewPlainTextInputBlockElement(slack.NewTextBlockObject("plain_text", "例：スマブラ、Android", false, false), "name_input"),
 		),
+		// コード
+		slack.NewInputBlock(
+			"code_block",
+			slack.NewTextBlockObject("plain_text", "活動コードを入力してください", false, false),
+			slack.NewTextBlockObject("plain_text", "コード", false, false),
+			slack.NewPlainTextInputBlockElement(slack.NewTextBlockObject("plain_text", "例：digital_01, analog_28", false, false), "code_input"),
+		),
 		// 人数
 		slack.NewInputBlock(
 			"number_block",
