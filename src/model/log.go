@@ -89,6 +89,24 @@ func ReadLogsByEventIDAndDayOfWeek(eventID uint, dayOfWeek time.Weekday) ([]Log,
 	return logs, nil
 }
 
+// ReadLogsByEventIDsAndDayOfWeek retrieves logs for multiple event IDs and a day of week.
+// 活動をグループ化した予測のために、複数イベント分のログを1クエリで合算して取得する
+func ReadLogsByEventIDsAndDayOfWeek(eventIDs []uint, dayOfWeek time.Weekday) ([]Log, error) {
+	var logs []Log
+
+	// dayOfWeekをMysqlのWEEKDAY関数に合わせて変換 (0=月曜日, ..., 6=日曜日)
+	mysqlDayOfWeek := (int(dayOfWeek) + 6) % 7
+
+	if err := db.Where("event_id IN ? AND WEEKDAY(logs.event_time) = ?", eventIDs, mysqlDayOfWeek).
+		Preload("Event").
+		Preload("Status").
+		Find(&logs).Error; err != nil {
+		return nil, err
+	}
+
+	return logs, nil
+}
+
 // ReadLogsByEventIDAndDayOfWeekWithWeeks retrieves logs by event ID, day of week, and number of weeks
 func ReadLogsByEventIDAndDayOfWeekWithWeeks(eventID uint, dayOfWeek time.Weekday, weeks int) ([]Log, error) {
 	var logs []Log
