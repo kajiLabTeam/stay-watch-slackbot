@@ -154,6 +154,38 @@ info:
   title: Stay Watch Slackbot API
   version: "1.0"
 paths:
+  /api/activities/groups/probabilities:
+    get:
+      parameters:
+      - description: '曜日 (MySQL WEEKDAY形式: 0=月, 6=日)。省略時は今日の曜日'
+        in: query
+        name: weekday
+        type: integer
+      - description: グループ化軸をカンマ区切りで指定。min_number, equipment が指定可能。省略時は両方
+        in: query
+        name: by
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 参加人数・機材でグループ化した活動の時間帯別発生確率を取得
+      tags:
+      - activities
   /api/activities/probabilities:
     get:
       parameters:

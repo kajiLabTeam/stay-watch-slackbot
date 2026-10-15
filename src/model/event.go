@@ -51,6 +51,15 @@ func (e *Event) ReadAllWithUsers() ([]Event, error) {
 	return events, nil
 }
 
+// ReadAllWithEquipment は全イベントを Equipment を含めて取得する
+func (e *Event) ReadAllWithEquipment() ([]Event, error) {
+	var events []Event
+	if err := db.Preload("Equipment").Find(&events).Error; err != nil {
+		return events, err
+	}
+	return events, nil
+}
+
 // UpdateImageKey はイベントの画像キーのみを更新する
 func (e *Event) UpdateImageKey(imageKey string) error {
 	if err := db.Model(e).Update("image_key", imageKey).Error; err != nil {

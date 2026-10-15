@@ -1,8 +1,10 @@
 package controller
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -220,20 +222,10 @@ func GetEventProbability(c *gin.Context) {
 // @Failure 500 {object} map[string]interface{}
 // @Router /api/activities/probabilities [get]
 func GetAllActivityProbabilities(c *gin.Context) {
-	var weekday time.Weekday
-
-	weekdayStr := c.Query("weekday")
-	if weekdayStr == "" {
-		// デフォルト: 今日の曜日（JST）
-		weekday = lib.NowJST().Weekday()
-	} else {
-		weekdayInt, err := strconv.Atoi(weekdayStr)
-		if err != nil || weekdayInt < 0 || weekdayInt > 6 {
-			respondError(c, http.StatusBadRequest, "weekday must be 0-6 (Monday=0, Sunday=6)")
-			return
-		}
-		// MySQL WEEKDAY形式(月=0)からGoのtime.Weekday形式(日=0)に変換
-		weekday = time.Weekday((weekdayInt + 1) % 7)
+	weekday, err := parseWeekdayQuery(c.Query("weekday"))
+	if err != nil {
+		respondError(c, http.StatusBadRequest, err.Error())
+		return
 	}
 
 	results, err := service.GetAllActivityProbabilities(weekday)
@@ -245,6 +237,79 @@ func GetAllActivityProbabilities(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"data": results,
 	})
+}
+
+// GetAllActivityGroupProbabilities はグループ化した活動の時間帯別発生確率を取得するAPIハンドラー
+// @Summary 参加人数・機材でグループ化した活動の時間帯別発生確率を取得
+// @Tags activities
+// @Produce json
+// @Param weekday query int false "曜日 (MySQL WEEKDAY形式: 0=月, 6=日)。省略時は今日の曜日"
+// @Param by query string false "グループ化軸をカンマ区切りで指定。min_number, equipment が指定可能。省略時は両方"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/activities/groups/probabilities [get]
+func GetAllActivityGroupProbabilities(c *gin.Context) {
+	weekday, err := parseWeekdayQuery(c.Query("weekday"))
+	if err != nil {
+		respondError(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	axes, err := parseGroupingAxes(c.Query("by"))
+	if err != nil {
+		respondError(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	results, err := service.GetAllActivityGroupProbabilities(weekday, axes)
+	if err != nil {
+		respondError(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data": results,
+	})
+}
+
+// parseWeekdayQuery はクエリパラメータ weekday を time.Weekday に変換する。
+// 省略時は今日の曜日（JST）を返す
+func parseWeekdayQuery(weekdayStr string) (time.Weekday, error) {
+	if weekdayStr == "" {
+		// デフォルト: 今日の曜日（JST）
+		return lib.NowJST().Weekday(), nil
+	}
+	weekdayInt, err := strconv.Atoi(weekdayStr)
+	if err != nil || weekdayInt < 0 || weekdayInt > 6 {
+		return 0, fmt.Errorf("weekday must be 0-6 (Monday=0, Sunday=6)")
+	}
+	// MySQL WEEKDAY形式(月=0)からGoのtime.Weekday形式(日=0)に変換
+	return time.Weekday((weekdayInt + 1) % 7), nil
+}
+
+// parseGroupingAxes は by クエリパラメータ（カンマ区切り）をグループ化軸に変換する。
+// 省略時は min_number, equipment の両方を返す
+func parseGroupingAxes(byStr string) ([]service.GroupingAxis, error) {
+	if byStr == "" {
+		return []service.GroupingAxis{service.GroupByMinNumber, service.GroupByEquipment}, nil
+	}
+
+	var axes []service.GroupingAxis
+	for _, part := range strings.Split(byStr, ",") {
+		switch strings.TrimSpace(part) {
+		case string(service.GroupByMinNumber):
+			axes = append(axes, service.GroupByMinNumber)
+		case string(service.GroupByEquipment):
+			axes = append(axes, service.GroupByEquipment)
+		default:
+			return nil, fmt.Errorf("by must be a comma-separated list of: min_number, equipment")
+		}
+	}
+	if len(axes) == 0 {
+		return nil, fmt.Errorf("by must not be empty")
+	}
+	return axes, nil
 }
 
 // PostRegisterLogs はログを一括登録するAPIハンドラー
