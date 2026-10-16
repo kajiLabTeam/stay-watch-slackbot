@@ -11,7 +11,8 @@ import (
 )
 
 // buildStayWatchURL はStayWatch APIのURLを構築する共通ヘルパー関数（複数ユーザー用）
-func buildStayWatchURL(endpoint string, userIDs []int64, weekday int, timeStr string) string {
+// isForward は /probability/visit のみが解釈するパラメータ（targetTimeまでの確率か、targetTime以降の確率か）
+func buildStayWatchURL(endpoint string, userIDs []int64, weekday int, timeStr string, isForward bool) string {
 	u, _ := url.Parse(staywatch.BaseURL + endpoint)
 	q := u.Query()
 	for _, userID := range userIDs {
@@ -23,6 +24,7 @@ func buildStayWatchURL(endpoint string, userIDs []int64, weekday int, timeStr st
 	if timeStr != "" {
 		q.Add("time", timeStr)
 	}
+	q.Add("is-forward", strconv.FormatBool(isForward))
 	u.RawQuery = q.Encode()
 	return u.String()
 }
@@ -87,7 +89,34 @@ func GetStayWatchProbability(users []model.User, weekday time.Weekday) []Probabi
 		userIDs = append(userIDs, user.StayWatchID)
 	}
 
-	url := buildStayWatchURL(staywatch.Probability+"/visit", userIDs, int(weekday), "23:59")
+	url := buildStayWatchURL(staywatch.Probability+"/visit", userIDs, int(weekday), "23:59", true)
+
+	var r StayWatchResponse
+	if err := stayWatchClient.Get(url, &r); err != nil {
+		return []Probability{}
+	}
+
+	var probability []Probability
+	for _, result := range r.Result {
+		probability = append(probability, Probability{
+			UserID:      int(result.UserID),
+			Probability: result.Probability,
+		})
+	}
+	return probability
+}
+
+// GetRemainingVisitProbability は、まだ来訪していないユーザーについて
+// 「現在時刻（nowTime）以降にまだ来訪する確率」（週あたり正規化済み）を取得する。
+// StayWatch側のGMMをそのまま使い、来訪予測の時間帯をかなり過ぎても現れないユーザーを
+// 判定するためのノーショー判定に使う。
+func GetRemainingVisitProbability(users []model.User, weekday time.Weekday, nowTime string) []Probability {
+	var userIDs []int64
+	for _, user := range users {
+		userIDs = append(userIDs, user.StayWatchID)
+	}
+
+	url := buildStayWatchURL(staywatch.Probability+"/visit", userIDs, int(weekday), nowTime, false)
 
 	var r StayWatchResponse
 	if err := stayWatchClient.Get(url, &r); err != nil {
@@ -134,7 +163,7 @@ func fetchPredictionTime(users []model.User, weekday time.Weekday, action string
 		userIDs = append(userIDs, user.StayWatchID)
 	}
 
-	url := buildStayWatchURL(staywatch.Time+"/"+action, userIDs, int(weekday), "")
+	url := buildStayWatchURL(staywatch.Time+"/"+action, userIDs, int(weekday), "", true)
 
 	var r StayWatchResponse
 	if err := stayWatchClient.Get(url, &r); err != nil {

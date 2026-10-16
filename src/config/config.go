@@ -2,6 +2,7 @@
 package config
 
 import (
+	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -22,6 +23,21 @@ func getEnvFloat(key string, defaultValue float64) float64 {
 	}
 	f, err := strconv.ParseFloat(value, 64)
 	if err != nil {
+		return defaultValue
+	}
+	return f
+}
+
+// getEnvProbability は 0.0〜1.0 の確率値を環境変数から取得する。
+// strconv.ParseFloat は "NaN"/"Inf" もエラーなしで受理するため、
+// 有限値かつ範囲内であることを確認し、それ以外は既定値にフォールバックする
+func getEnvProbability(key string, defaultValue float64) float64 {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+	f, err := strconv.ParseFloat(value, 64)
+	if err != nil || math.IsNaN(f) || math.IsInf(f, 0) || f < 0 || f > 1 {
 		return defaultValue
 	}
 	return f
@@ -95,6 +111,13 @@ type BoardThresholds struct {
 	ActivityProbability float64
 }
 
+// VisitThresholds はノーショー判定に使う設定を保持する
+type VisitThresholds struct {
+	// NoShowRemainingProbabilityThreshold は「現在時刻以降にまだ来訪する確率」がこの値未満なら
+	// その日はもう来ない可能性が高いと判定する閾値（0〜1）
+	NoShowRemainingProbabilityThreshold float64
+}
+
 // S3Config はS3互換オブジェクトストレージ（RustFS）の設定を保持する
 type S3Config struct {
 	Endpoint      string
@@ -129,6 +152,7 @@ var (
 	CORS       CORSConfig
 	Server     ServerConfig
 	Board      BoardThresholds
+	Visit      VisitThresholds
 	S3         S3Config
 	DB         DBConfig
 	HTTPClient HTTPClientConfig
@@ -162,6 +186,10 @@ func init() {
 		ArrivalLikely:       getEnvFloat("BOARD_ARRIVAL_LIKELY_THRESHOLD", 0.5),
 		ArrivalMaybe:        getEnvFloat("BOARD_ARRIVAL_MAYBE_THRESHOLD", 0.3),
 		ActivityProbability: getEnvFloat("BOARD_ACTIVITY_PROBABILITY_THRESHOLD", 0.3),
+	}
+
+	Visit = VisitThresholds{
+		NoShowRemainingProbabilityThreshold: getEnvProbability("VISIT_NOSHOW_REMAINING_PROBABILITY_THRESHOLD", 0.1),
 	}
 
 	S3 = S3Config{

@@ -90,33 +90,9 @@ func GetBoardData() (BoardData, error) {
 
 	assigns := collectBoardPeople(weekday)
 
-	var e model.Event
-	events, err := e.ReadAllWithUsers()
-	if err != nil {
-		return BoardData{}, err
-	}
-
-	activityProbByEventID, err := activityProbabilitiesByEventID(weekday)
-	if err != nil {
-		return BoardData{}, err
-	}
-
-	return BoardData{
-		CurrentTime: now.Format("15:04"),
-		Presence:    BoardPresence{Members: buildBoardPresence()},
-		Hours:       buildBoardHours(events, assigns, activityProbByEventID, now.Hour()),
-	}, nil
-}
-
-// buildBoardPresence は StayWatch の現在の在室者を取得し、DBのアイコンURLを補って返す。
-// 取得に失敗しても board 全体は返せるよう、失敗時は空配列にする
-func buildBoardPresence() []BoardPresentMember {
-	members := []BoardPresentMember{}
-
-	stayers, err := GetStayWatchPresence()
-	if err != nil {
-		log.Printf("failed to fetch presence from StayWatch: %v", err)
-		return members
+	stayers, presenceErr := GetStayWatchPresence()
+	if presenceErr != nil {
+		log.Printf("failed to fetch presence from StayWatch: %v", presenceErr)
 	}
 
 	var u model.User
@@ -130,6 +106,38 @@ func buildBoardPresence() []BoardPresentMember {
 		userByStayWatchID[user.StayWatchID] = user
 	}
 
+	presentStayWatchIDs := make(map[int64]bool, len(stayers))
+	for _, s := range stayers {
+		presentStayWatchIDs[s.ID] = true
+	}
+
+	// 在室情報が取得できていない場合、全員「非在室」と誤認してノーショー判定してしまうため、
+	// 取得に成功したときだけノーショー判定を行う
+	if presenceErr == nil {
+		assigns = applyNoShow(assigns, presentStayWatchIDs, weekday, now)
+	}
+
+	var e model.Event
+	events, err := e.ReadAllWithUsers()
+	if err != nil {
+		return BoardData{}, err
+	}
+
+	activityProbByEventID, err := activityProbabilitiesByEventID(weekday)
+	if err != nil {
+		return BoardData{}, err
+	}
+
+	return BoardData{
+		CurrentTime: now.Format("15:04"),
+		Presence:    BoardPresence{Members: buildBoardPresence(stayers, userByStayWatchID)},
+		Hours:       buildBoardHours(events, assigns, activityProbByEventID, now.Hour()),
+	}, nil
+}
+
+// buildBoardPresence は StayWatch の現在の在室者一覧に、DBのアイコンURLを補って返す
+func buildBoardPresence(stayers []StaywatchUsers, userByStayWatchID map[int64]model.User) []BoardPresentMember {
+	members := []BoardPresentMember{}
 	for _, s := range stayers {
 		member := BoardPresentMember{Name: s.Name}
 		if user, ok := userByStayWatchID[s.ID]; ok {
@@ -139,6 +147,42 @@ func buildBoardPresence() []BoardPresentMember {
 		members = append(members, member)
 	}
 	return members
+}
+
+// applyNoShow は、まだ在室していない予測対象ユーザーについて「現在時刻以降にまだ来訪する確率」を
+// StayWatchに問い合わせ、閾値未満ならその日はもう来ないと判断して在室予測から除外する
+func applyNoShow(assigns []boardPersonAssign, presentStayWatchIDs map[int64]bool, weekday time.Weekday, now time.Time) []boardPersonAssign {
+	var candidates []model.User
+	for _, a := range assigns {
+		if (a.visitMin >= 0 || a.departureMin >= 0) && !presentStayWatchIDs[a.user.StayWatchID] {
+			candidates = append(candidates, a.user)
+		}
+	}
+	if len(candidates) == 0 {
+		return assigns
+	}
+
+	remaining := GetRemainingVisitProbability(candidates, weekday, now.Format("15:04"))
+	remainingByStayWatchID := make(map[int64]float64, len(remaining))
+	for _, r := range remaining {
+		remainingByStayWatchID[int64(r.UserID)] = r.Probability
+	}
+
+	for i, a := range assigns {
+		if (a.visitMin < 0 && a.departureMin < 0) || presentStayWatchIDs[a.user.StayWatchID] {
+			continue
+		}
+		p, ok := remainingByStayWatchID[a.user.StayWatchID]
+		if !ok {
+			// 取得失敗時は安全側に倒し、既存の予測をそのまま使う
+			continue
+		}
+		if p < config.Visit.NoShowRemainingProbabilityThreshold {
+			assigns[i].visitMin = -1
+			assigns[i].departureMin = -1
+		}
+	}
+	return assigns
 }
 
 // activityProbabilitiesByEventID は全活動のGMM時間帯確率を EventID をキーにしたマップにして返す
