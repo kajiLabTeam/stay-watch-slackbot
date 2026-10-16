@@ -1,7 +1,12 @@
 package controller
 
 import (
+	"encoding/json"
+	"fmt"
+	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"time"
 
@@ -308,7 +313,39 @@ func GetBoard(c *gin.Context) {
 		return
 	}
 
+	logBoardResponse(board)
+
 	c.JSON(http.StatusOK, board)
+}
+
+// logBoardResponse は /api/board のレスポンス内容を日付ごとのログファイル（log/board/YYYY-MM-DD.log）に
+// 1行追記する。記録に失敗してもAPIレスポンス自体には影響させない
+func logBoardResponse(board service.BoardData) {
+	dir := "../log/board"
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		log.Printf("failed to create board log directory: %v", err)
+		return
+	}
+
+	now := lib.NowJST()
+	path := filepath.Join(dir, now.Format("2006-01-02")+".log")
+
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Printf("failed to open board log file: %v", err)
+		return
+	}
+	defer func() { _ = f.Close() }()
+
+	body, err := json.Marshal(board)
+	if err != nil {
+		log.Printf("failed to marshal board response for logging: %v", err)
+		return
+	}
+
+	if _, err := fmt.Fprintf(f, "[%s] %s\n", now.Format("2006-01-02 15:04:05"), body); err != nil {
+		log.Printf("failed to write board log: %v", err)
+	}
 }
 
 // PostRefreshUserIcons は全ユーザのアイコンURLをSlackから取得し直してDBを更新するAPIハンドラー
