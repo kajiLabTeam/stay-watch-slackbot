@@ -7,9 +7,10 @@ import (
 	"github.com/kajiLabTeam/stay-watch-slackbot/model"
 )
 
-func RegisterEvent(name string, minNumber int) (model.Event, error) {
+func RegisterEvent(name string, code string, minNumber int) (model.Event, error) {
 	event := model.Event{
 		Name:      name,
+		Code:      code,
 		MinNumber: minNumber,
 	}
 
