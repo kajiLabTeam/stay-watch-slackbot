@@ -90,10 +90,9 @@ func GetBoardData() (BoardData, error) {
 
 	assigns := collectBoardPeople(weekday)
 
-	stayers, err := GetStayWatchPresence()
-	if err != nil {
-		log.Printf("failed to fetch presence from StayWatch: %v", err)
-		stayers = nil
+	stayers, presenceErr := GetStayWatchPresence()
+	if presenceErr != nil {
+		log.Printf("failed to fetch presence from StayWatch: %v", presenceErr)
 	}
 
 	var u model.User
@@ -112,7 +111,11 @@ func GetBoardData() (BoardData, error) {
 		presentStayWatchIDs[s.ID] = true
 	}
 
-	assigns = applyNoShow(assigns, presentStayWatchIDs, weekday, now)
+	// 在室情報が取得できていない場合、全員「非在室」と誤認してノーショー判定してしまうため、
+	// 取得に成功したときだけノーショー判定を行う
+	if presenceErr == nil {
+		assigns = applyNoShow(assigns, presentStayWatchIDs, weekday, now)
+	}
 
 	var e model.Event
 	events, err := e.ReadAllWithUsers()
@@ -151,7 +154,7 @@ func buildBoardPresence(stayers []StaywatchUsers, userByStayWatchID map[int64]mo
 func applyNoShow(assigns []boardPersonAssign, presentStayWatchIDs map[int64]bool, weekday time.Weekday, now time.Time) []boardPersonAssign {
 	var candidates []model.User
 	for _, a := range assigns {
-		if a.visitMin >= 0 && !presentStayWatchIDs[a.user.StayWatchID] {
+		if (a.visitMin >= 0 || a.departureMin >= 0) && !presentStayWatchIDs[a.user.StayWatchID] {
 			candidates = append(candidates, a.user)
 		}
 	}
@@ -166,7 +169,7 @@ func applyNoShow(assigns []boardPersonAssign, presentStayWatchIDs map[int64]bool
 	}
 
 	for i, a := range assigns {
-		if a.visitMin < 0 || presentStayWatchIDs[a.user.StayWatchID] {
+		if (a.visitMin < 0 && a.departureMin < 0) || presentStayWatchIDs[a.user.StayWatchID] {
 			continue
 		}
 		p, ok := remainingByStayWatchID[a.user.StayWatchID]

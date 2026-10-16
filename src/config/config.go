@@ -2,6 +2,7 @@
 package config
 
 import (
+	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -22,6 +23,21 @@ func getEnvFloat(key string, defaultValue float64) float64 {
 	}
 	f, err := strconv.ParseFloat(value, 64)
 	if err != nil {
+		return defaultValue
+	}
+	return f
+}
+
+// getEnvProbability は 0.0〜1.0 の確率値を環境変数から取得する。
+// strconv.ParseFloat は "NaN"/"Inf" もエラーなしで受理するため、
+// 有限値かつ範囲内であることを確認し、それ以外は既定値にフォールバックする
+func getEnvProbability(key string, defaultValue float64) float64 {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+	f, err := strconv.ParseFloat(value, 64)
+	if err != nil || math.IsNaN(f) || math.IsInf(f, 0) || f < 0 || f > 1 {
 		return defaultValue
 	}
 	return f
@@ -173,7 +189,7 @@ func init() {
 	}
 
 	Visit = VisitThresholds{
-		NoShowRemainingProbabilityThreshold: getEnvFloat("VISIT_NOSHOW_REMAINING_PROBABILITY_THRESHOLD", 0.1),
+		NoShowRemainingProbabilityThreshold: getEnvProbability("VISIT_NOSHOW_REMAINING_PROBABILITY_THRESHOLD", 0.1),
 	}
 
 	S3 = S3Config{
