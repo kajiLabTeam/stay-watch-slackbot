@@ -10,7 +10,13 @@ import (
 	"github.com/kajiLabTeam/stay-watch-slackbot/model"
 )
 
+// toMySQLWeekday はGoのtime.Weekday形式(日=0)をStayWatch APIが期待するMySQL WEEKDAY形式(月=0)に変換する
+func toMySQLWeekday(weekday time.Weekday) int {
+	return (int(weekday) + 6) % 7
+}
+
 // buildStayWatchURL はStayWatch APIのURLを構築する共通ヘルパー関数（複数ユーザー用）
+// weekday はMySQL WEEKDAY形式(月=0, 日=6)で渡すこと
 func buildStayWatchURL(endpoint string, userIDs []int64, weekday int, timeStr string) string {
 	u, _ := url.Parse(staywatch.BaseURL + endpoint)
 	q := u.Query()
@@ -87,7 +93,7 @@ func GetStayWatchProbability(users []model.User, weekday time.Weekday) []Probabi
 		userIDs = append(userIDs, user.StayWatchID)
 	}
 
-	url := buildStayWatchURL(staywatch.Probability+"/visit", userIDs, int(weekday), "23:59")
+	url := buildStayWatchURL(staywatch.Probability+"/visit", userIDs, toMySQLWeekday(weekday), "23:59")
 
 	var r StayWatchResponse
 	if err := stayWatchClient.Get(url, &r); err != nil {
@@ -134,7 +140,7 @@ func fetchPredictionTime(users []model.User, weekday time.Weekday, action string
 		userIDs = append(userIDs, user.StayWatchID)
 	}
 
-	url := buildStayWatchURL(staywatch.Time+"/"+action, userIDs, int(weekday), "")
+	url := buildStayWatchURL(staywatch.Time+"/"+action, userIDs, toMySQLWeekday(weekday), "")
 
 	var r StayWatchResponse
 	if err := stayWatchClient.Get(url, &r); err != nil {
