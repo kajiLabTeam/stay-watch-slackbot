@@ -101,22 +101,26 @@ func GetBoardData() (BoardData, error) {
 		return BoardData{}, err
 	}
 
+	presentMembers, presentUsers := buildBoardPresence()
+
 	return BoardData{
 		CurrentTime: now.Format("15:04"),
-		Presence:    BoardPresence{Members: buildBoardPresence()},
-		Hours:       buildBoardHours(events, assigns, activityProbByEventID, now.Hour()),
+		Presence:    BoardPresence{Members: presentMembers},
+		Hours:       buildBoardHours(events, assigns, activityProbByEventID, now.Hour(), presentUsers),
 	}, nil
 }
 
 // buildBoardPresence は StayWatch の現在の在室者を取得し、DBのアイコンURLを補って返す。
-// 取得に失敗しても board 全体は返せるよう、失敗時は空配列にする
-func buildBoardPresence() []BoardPresentMember {
+// 取得に失敗しても board 全体は返せるよう、失敗時は空配列にする。
+// あわせて、ユーザーとして特定できた在室者（現在時刻の活動予測に組み込むため）も返す
+func buildBoardPresence() ([]BoardPresentMember, []model.User) {
 	members := []BoardPresentMember{}
+	presentUsers := []model.User{}
 
 	stayers, err := GetStayWatchPresence()
 	if err != nil {
 		log.Printf("failed to fetch presence from StayWatch: %v", err)
-		return members
+		return members, presentUsers
 	}
 
 	var u model.User
@@ -135,10 +139,11 @@ func buildBoardPresence() []BoardPresentMember {
 		if user, ok := userByStayWatchID[s.ID]; ok {
 			member.Name = user.Name
 			member.AvatarURL = user.IconURL
+			presentUsers = append(presentUsers, user)
 		}
 		members = append(members, member)
 	}
-	return members
+	return members, presentUsers
 }
 
 // activityProbabilitiesByEventID は全活動のGMM時間帯確率を EventID をキーにしたマップにして返す
@@ -171,22 +176,34 @@ func boardHourRange(nowHour int) []int {
 	return hours
 }
 
-// buildBoardHours はタイムラインの各列に在室予想者と成立しそうな活動を割り当てる
-func buildBoardHours(events []model.Event, assigns []boardPersonAssign, activityProbByEventID map[uint]ActivityProbability, nowHour int) []BoardHour {
+// buildBoardHours はタイムラインの各列に在室予想者と成立しそうな活動を割り当てる。
+// 現在時刻の列には、予測だけでなく実際に在室中のユーザー（presentUsers）も合流させる
+func buildBoardHours(events []model.Event, assigns []boardPersonAssign, activityProbByEventID map[uint]ActivityProbability, nowHour int, presentUsers []model.User) []BoardHour {
 	hourColumns := boardHourRange(nowHour)
 
 	hours := make([]BoardHour, 0, len(hourColumns))
 	for _, hour := range hourColumns {
-		people := []BoardPerson{}
+		users := make(map[uint]model.User, len(assigns))
 		for _, a := range assigns {
 			if isPresentAtHour(a, hour) {
-				people = append(people, newBoardPerson(a.user))
+				users[a.user.ID] = a.user
 			}
 		}
+		if hour == nowHour {
+			for _, user := range presentUsers {
+				users[user.ID] = user
+			}
+		}
+
+		people := make([]BoardPerson, 0, len(users))
+		for _, user := range users {
+			people = append(people, newBoardPerson(user))
+		}
+
 		hours = append(hours, BoardHour{
 			Hour:       hour,
 			People:     people,
-			Activities: buildBoardActivitiesForHour(events, assigns, activityProbByEventID, hour),
+			Activities: buildBoardActivitiesForHour(events, activityProbByEventID, hour, users),
 		})
 	}
 	return hours
@@ -214,16 +231,9 @@ func isPresentAtHour(a boardPersonAssign, hour int) bool {
 }
 
 // buildBoardActivitiesForHour は「関心のあるメンバーがその時間帯に在室していそうで、
-// かつ最低人数以上そろいそうな活動」を、その時間のGMM活動確率がしきい値以上のものに絞って返す
-func buildBoardActivitiesForHour(events []model.Event, assigns []boardPersonAssign, activityProbByEventID map[uint]ActivityProbability, hour int) []BoardActivity {
-	// この時間帯に在室していそうな人（ArrivalMaybe 以上で足切り済み）
-	presentUsers := make(map[uint]model.User, len(assigns))
-	for _, a := range assigns {
-		if isPresentAtHour(a, hour) {
-			presentUsers[a.user.ID] = a.user
-		}
-	}
-
+// かつ最低人数以上そろいそうな活動」を、その時間のGMM活動確率がしきい値以上のものに絞って返す。
+// presentUsers にはその時間帯に在室していそうな人（予測、現在時刻なら実在室者も含む）を渡す
+func buildBoardActivitiesForHour(events []model.Event, activityProbByEventID map[uint]ActivityProbability, hour int, presentUsers map[uint]model.User) []BoardActivity {
 	activities := []BoardActivity{}
 	for _, ev := range events {
 		prob, ok := activityProbByEventID[ev.ID]
