@@ -91,6 +91,7 @@ func Router() {
 	r.GET("/api/events", controller.GetEvents)
 	r.GET("/api/events/:id/probability", controller.GetEventProbability)
 	r.GET("/api/activities/probabilities", controller.GetAllActivityProbabilities)
+	r.GET("/api/activities/groups/probabilities", controller.GetAllActivityGroupProbabilities)
 	r.POST("/api/logs", controller.PostRegisterLogs)
 	r.POST("/api/users/icons/refresh", controller.PostRefreshUserIcons)
 	r.GET("/api/board", controller.GetBoard)

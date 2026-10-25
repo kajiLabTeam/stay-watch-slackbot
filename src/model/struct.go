@@ -41,8 +41,17 @@ type Event struct {
 	MinNumber  int         `gorm:"default:2"`                              // 最低必要人数
 	GameTypeID *uint       `gorm:"index"`                                  // 分類未設定を許容するためNULL可
 	GameType   *GameType   `gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
-	ImageKey   *string     `gorm:"type:varchar(255)"` // オブジェクトストレージ上のキー。例 events/5.png。未登録はNULL
+	ImageKey   *string     `gorm:"type:varchar(255)"`              // オブジェクトストレージ上のキー。例 events/5.png。未登録はNULL
+	Equipment  []Equipment `gorm:"many2many:event_equipment;"`     // 使用する機材（サイコロ、カードなど）。活動のグループ化に使う
 	EventUsers []EventUser `gorm:"foreignKey:EventID"`
+}
+
+// Equipment は活動で使用する機材・道具を表す（サイコロ、カード、ボード など）。
+// 活動を参加人数・機材でグループ化して発生予測するために使う
+type Equipment struct {
+	gorm.Model
+	Name   string  `gorm:"type:varchar(255);uniqueIndex;not null"`
+	Events []Event `gorm:"many2many:event_equipment;"`
 }
 
 // EventUser は Event と User の関係を表す中間テーブル
@@ -102,7 +111,7 @@ var gameTypeSeeds = []string{"digital", "analog"}
 
 func init() {
 	db = lib.SQLConnect()
-	if err := db.AutoMigrate(&User{}, &Status{}, &GameType{}, &Event{}, &EventUser{}, &Log{}, &LogsUserRoom{}, &LogsUserParticipate{}); err != nil {
+	if err := db.AutoMigrate(&User{}, &Status{}, &GameType{}, &Equipment{}, &Event{}, &EventUser{}, &Log{}, &LogsUserRoom{}, &LogsUserParticipate{}); err != nil {
 		log.Fatalf("AutoMigrate failed: %v", err)
 	}
 	if err := seedGameTypes(); err != nil {
