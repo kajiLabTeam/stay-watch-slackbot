@@ -40,6 +40,10 @@ func calculateWeeks(logs []model.Log) int {
 }
 
 // GetActivityProbability イベントごとの活動確率を取得する
+// 「targetTime 時点で活動が進行中である確率」= P_start(targetTime) - P_end(targetTime) を返す。
+// 開始時刻の分布だけでなく終了時刻の分布も見ることで、継続時間の長い活動が
+// 開始直後のクラスタ付近でしか高確率にならない問題（進行中でももう始まってから
+// 時間が経っていると過小評価される）を避ける。
 func GetActivityProbability(eventID uint, dayOfWeek time.Weekday, targetTime string) (float64, error) {
 	// 1. ログを取得
 	logs, err := model.ReadLogsByEventIDAndDayOfWeek(eventID, dayOfWeek)
@@ -50,27 +54,39 @@ func GetActivityProbability(eventID uint, dayOfWeek time.Weekday, targetTime str
 	// 2. 週数を計算
 	weeks := calculateWeeks(logs)
 
-	// 3. Status が "start" のログをフィルタリング（日付付き）
-	// DBはJSTなのでそのまま使用（targetTimeもJST）
-	var datetimeStrings []string
-	for _, log := range logs {
-		if log.Status.Name == "start" {
-			datetimeStr := log.EventTime.Format("2006-01-02 15:04")
-			datetimeStrings = append(datetimeStrings, datetimeStr)
-		}
-	}
-
-	if len(datetimeStrings) == 0 {
+	// 3. Status が "start"/"end" のログをそれぞれ抽出（日付重複排除は
+	//    NewProbabilityModelByUniqueDate が内部で行う）
+	startDatetimes := extractStartDatetimes(logs)
+	if len(startDatetimes) == 0 {
 		return 0.0, nil
 	}
+	endDatetimes := extractEndDatetimes(logs)
 
-	// 3. prediction パッケージで確率計算（日付重複を排除）
-	probability, err := prediction.GetProbabilityByUniqueDate(datetimeStrings, targetTime, weeks)
+	// 4. 開始・終了それぞれの分布モデルを構築し、進行中確率を計算
+	startModel, err := prediction.NewProbabilityModelByUniqueDate(startDatetimes)
+	if err != nil {
+		return 0.0, err
+	}
+	endModel, err := prediction.NewProbabilityModelByUniqueDate(endDatetimes)
 	if err != nil {
 		return 0.0, err
 	}
 
-	return probability, nil
+	return calcOngoingProbability(startModel, endModel, targetTime, weeks)
+}
+
+// calcOngoingProbability は startModel/endModel から「時刻 t に活動が進行中である確率」
+// P_ongoing(t) = P_start(t) - P_end(t) を計算する（0〜1 にクランプ）
+func calcOngoingProbability(startModel, endModel *prediction.ProbabilityModel, timeStr string, weeks int) (float64, error) {
+	startProb, err := startModel.Probability(timeStr, weeks)
+	if err != nil {
+		return 0, err
+	}
+	endProb, err := endModel.Probability(timeStr, weeks)
+	if err != nil {
+		return 0, err
+	}
+	return clampHourProbability(startProb - endProb), nil
 }
 
 // getActivityTimeRange イベントの活動予測時刻範囲を取得する
@@ -161,42 +177,48 @@ func filterByCommonActivities(candidates []model.User, receiverActivityEventIDs 
 
 // extractStartDatetimes は "start" ステータスのログからJST日時文字列を抽出する
 func extractStartDatetimes(logs []model.Log) []string {
+	return extractDatetimesByStatus(logs, "start")
+}
+
+// extractEndDatetimes は "end" ステータスのログからJST日時文字列を抽出する
+func extractEndDatetimes(logs []model.Log) []string {
+	return extractDatetimesByStatus(logs, "end")
+}
+
+func extractDatetimesByStatus(logs []model.Log, statusName string) []string {
 	var datetimeStrings []string
 	for _, log := range logs {
-		if log.Status.Name == "start" {
+		if log.Status.Name == statusName {
 			datetimeStrings = append(datetimeStrings, log.EventTime.Format("2006-01-02 15:04"))
 		}
 	}
 	return datetimeStrings
 }
 
-// calcHourlyProbabilities は各時間帯（JST 0〜23時）の確率を計算する
-// H時 = CDF(H:30) - CDF((H-1):30) で (H-1):30〜H:30 の確率密度合計を求める。
-// CDFは日をまたいで循環しないため、0時のみ「全体 - CDF(23:30) + CDF(00:30)」として
-// 23:30〜翌00:30の日付境界をまたぐ区間を求める。
+// calcHourlyProbabilities は各時間帯（JST 0〜23時）の「活動が進行中である確率」を計算する。
+// その時間帯の代表時刻 H:30 における P_ongoing(H:30) = P_start(H:30) - P_end(H:30) を使う。
+// 開始ログだけでなく終了ログの分布も見ることで、継続時間の長い活動が開始クラスタ付近
+// でしか高確率にならない問題（進行中でも開始から時間が経つと過小評価される）を避ける。
+// 終了ログが無いイベントでは P_end が常に0になり、P_start のみの挙動にフォールバックする。
 //
-// クラスタリングは重い処理なのでモデルを1度だけ構築し、24時刻ぶんのCDF評価に使い回す
-func calcHourlyProbabilities(datetimeStrings []string, weeks int) []float64 {
-	probModel, err := prediction.NewProbabilityModelFromDatetimes(datetimeStrings)
+// クラスタリングは重い処理なのでモデルを1度だけ構築し、24時刻ぶんの評価に使い回す
+func calcHourlyProbabilities(startDatetimes, endDatetimes []string, weeks int) []float64 {
+	startModel, err := prediction.NewProbabilityModelFromDatetimes(startDatetimes)
+	if err != nil {
+		return make([]float64, 24)
+	}
+	endModel, err := prediction.NewProbabilityModelFromDatetimes(endDatetimes)
 	if err != nil {
 		return make([]float64, 24)
 	}
 
-	// HH:30（H = 0〜23）の24点のCDFを求める。各時間帯の確率はこの差分で得られる
-	cdf := make([]float64, 24)
+	probabilities := make([]float64, 24)
 	for hour := 0; hour < 24; hour++ {
-		value, err := probModel.Probability(fmt.Sprintf("%02d:30", hour), weeks)
+		prob, err := calcOngoingProbability(startModel, endModel, fmt.Sprintf("%02d:30", hour), weeks)
 		if err != nil {
 			return make([]float64, 24)
 		}
-		cdf[hour] = value
-	}
-	total := probModel.TotalWeight(weeks)
-
-	probabilities := make([]float64, 24)
-	probabilities[0] = clampHourProbability(total - cdf[23] + cdf[0])
-	for hour := 1; hour < 24; hour++ {
-		probabilities[hour] = clampHourProbability(cdf[hour] - cdf[hour-1])
+		probabilities[hour] = prob
 	}
 	return probabilities
 }
@@ -220,21 +242,22 @@ func calcEventProbability(ev model.Event, dayOfWeek time.Weekday) ActivityProbab
 	}
 
 	weeks := calculateWeeks(logs)
-	datetimeStrings := extractStartDatetimes(logs)
-	if len(datetimeStrings) == 0 {
+	startDatetimes := extractStartDatetimes(logs)
+	if len(startDatetimes) == 0 {
 		return ActivityProbability{EventID: ev.ID, ActivityName: ev.Name, Probabilities: make([]float64, 24)}
 	}
+	endDatetimes := extractEndDatetimes(logs)
 
 	return ActivityProbability{
 		EventID:       ev.ID,
 		ActivityName:  ev.Name,
-		Probabilities: calcHourlyProbabilities(datetimeStrings, weeks),
+		Probabilities: calcHourlyProbabilities(startDatetimes, endDatetimes, weeks),
 	}
 }
 
 // GetAllActivityProbabilities は全活動の1時間ごとの発生確率を取得する
-// 各時間帯（JST H時）について、(H-1):30〜H:30 の範囲の確率密度合計を計算する
-// 例: 12時の場合、CDF(12:30) - CDF(11:30) で 11:30〜12:30 の確率を求める
+// 各時間帯（JST H時）について、その代表時刻 H:30 時点で活動が進行中である確率
+// P_ongoing(H:30) = P_start(H:30) - P_end(H:30) を計算する
 func GetAllActivityProbabilities(dayOfWeek time.Weekday) ([]ActivityProbability, error) {
 	event := model.Event{}
 	events, err := event.ReadAll()
